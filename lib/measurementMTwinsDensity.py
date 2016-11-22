@@ -28,7 +28,7 @@ import scipy.io as scio
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 from matplotlib.colors import LogNorm
-import csv
+
 
 try:
     import configparser
@@ -40,12 +40,11 @@ except ImportError:
 def _readConfig(configdic):
     """Read Config Files."""
     config = configparser.ConfigParser()
-    if os.path.isfile(configdic):
-        config.read(configdic)
-    elif os.path.isfile(os.path.join(configdic, 'config.ini')):
-        config.read(os.path.join(configdic, 'config.ini'))
-    else:
-        print('Example crashed!')
+
+    config.read([
+        os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
+        os.path.join(configdic, 'config.ini')
+        ])
 
     sample = config.get('db', 'tiki')
     # Fichier d'intensity created par le programme Figure_de_Poles
@@ -71,12 +70,11 @@ def _readConfig(configdic):
 def beamIntensity(directory, sample):
     # Get the input beam intensity.
     config = configparser.ConfigParser()
-    if os.path.isfile(os.path.join(directory, 'config.ini')):
-        config.read(os.path.join(directory, 'config.ini'))
-    else:
-        ffcong = os.path.join(os.path.dirname(sys.argv[0]), 'config.ini')
-        shutil.copy(ffcong, directory)
-        config.read(os.path.join(directory, 'config.ini'))
+
+    config.read([
+        os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
+        os.path.join(directory, 'config.ini')
+        ])
     try:
         inp_intensity = config.getint('db', 'beam_intensity')
     except:
@@ -190,21 +188,14 @@ def _Sq(data, x, y, size, x_offset=0, y_offset=0):
     return intensity, b * p
 
 
-def correction(sample, chi):
+def correction(sample, chi, thickness):
     theta = 14.22  # for GaP
     omega = 14.22  # for GaP
-    try:
-        config = configparser.ConfigParser()
-        if os.path.isfile(os.path.join(directory, 'config.ini')):
-            config.read(os.path.join(directory, 'config.ini'))
-        else:
-            ffcong = os.path.join(os.path.dirname(sys.argv[0]), 'config.ini')
-            shutil.copy(ffcong, directory)
-            config.read(os.path.join(directory, 'config.ini'))
-            
-            thickness = config.getint('db', 'beam_intensity')
-    except:
-        thickness = 900 / 10000
+    if thickness:
+        thickness = thickness
+    else:
+        thickness = 900/10000
+
     e_Angle = 90 - np.rad2deg(
         np.arccos(
             np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(theta))))
@@ -258,6 +249,13 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
 
     labeled, num_objects = ndimage.label(maxima)
     x, y = [], []  # x,y contain positions of local maxima
+
+    config = configparser.ConfigParser()
+
+    config.read([
+        os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
+        os.path.join(directory, 'config.ini')
+        ])
 
     # ----- plot 2D POSITIONS DES PICS A MESURER------
     # x = [90, 180, 208.278, 315.071]
@@ -351,7 +349,9 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
             f.write("Bruit de fond: %s" % str(bruits))
             f.write(os.linesep)
             f.write(
-                "Nombre de points dans chaque carres bruits: %s" % str(aire_bruit))
+                ("Nombre de points dans\
+                 chaque carres bruits: %s" % str(aire_bruit))
+                )
             f.write(os.linesep)
             f.write("MT intensity: %s" % str(MT_int))
             f.write(os.linesep)
@@ -367,9 +367,13 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
     MT_seul1 = [i * 10000 / InpIntensity for i in MT_seul1]
     # Create the table contains the MT intensity.
     mt_table_file = os.path.join(directory, '{0}_result.csv'.format(sample))
+    if config.has_option('db', 'thickness'):
+        thickness = int(config.get('db', 'thickness'))
+    else:
+        thickness = None
     with open(mt_table_file, 'w') as tableTeX:
-        
-        eta = [correction(sample, x) for x in y]
+
+        eta = [correction(sample, x, thickness) for x in y]
 
         MT_seul1[0] = MT_seul1[0] * 0.939691064
         MT_seul1[1] = MT_seul1[1] * 0.426843274 / (eta[1] / eta[2])

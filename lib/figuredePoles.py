@@ -119,9 +119,9 @@ def _shiftAngel(intensity, alpha):
     intensity1 = np.zeros(shape=intensity.shape)
     if alpha is not 0:
         intensity1[:(xlength - alpha) % xlength, :] = intensity[
-                                                      (xlength + alpha) % xlength:, :]
+            (xlength + alpha) % xlength:, :]
         intensity1[(xlength - alpha) % xlength:, :] = intensity[
-                                                      :(xlength + alpha) % xlength, :]
+            :(xlength + alpha) % xlength, :]
     else:
         intensity1 = intensity
 
@@ -149,18 +149,17 @@ def _load_data(int_path, phi_offset):
 
 def _readCONFIG(directory):
     config = configparser.ConfigParser()
-    if os.path.isfile(os.path.join(directory, 'config.ini')):
-        config.read(os.path.join(directory, 'config.ini'))
-    else:
-        ffcong = os.path.join(os.path.dirname(sys.argv[0]), 'config.ini')
-        shutil.copy(ffcong, directory)
-        config.read(os.path.join(directory, 'config.ini'))
+
+    config.read([
+        os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
+        os.path.join(directory, 'config.ini')
+        ])
     return config
 
 
 def _readConfigDict(directory):
     """Read the config."""
-    config = _readCONFIG(directory)
+    config = _readCONFIG(os.path.dirname(directory))
 
     if os.path.isfile(directory):
         raw_file = directory
@@ -186,7 +185,6 @@ def _readConfigDict(directory):
             sample = (re.findall(r'\d\d\d\d',
                                  directory, flags=re.IGNORECASE))[-1]
     except:
-        # searchOBJ=re.findall(r'S\d\d\d\d', directory, flags=re.IGNORECASE)
         if config.has_option('db', 'sample'):
             sample = config.get('db', 'sample')
         else:
@@ -202,7 +200,7 @@ def _setConfig(config, phi, phi_offset, chi, directory, sample):
     config.set("db", "phi", str(phi[-1] - phi_offset))
     config.set("db", "chi", str(chi[-1, -1]))
     config.set("db", "directory", directory)
-    config.set("db", "tiki", sample)
+    config.set("db", "Sample_title", sample)
     config.write(open(os.path.join(directory, 'config.ini'), "w"))
 
 
@@ -215,7 +213,6 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
 
     int_path = _generate_data_file(raw_file)
 
-    uxd_file = raw_file.replace("raw", "uxd")
     values, phi, chi, phiCopy = _load_data(int_path, phi_offset)
     config = _readCONFIG(directory)
     _setConfig(config, phiCopy, phi_offset, chi, directory, sample)
@@ -251,7 +248,7 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
         neighborhood_size, threshold, square_size)
     if measurement:
         measurementMTwinsDensity.main(directory, int_path, para, showImage)
-    # Remove the cache files,default yes.
+    # Remove the cache files, default yes.
     if removeCache:
         os.remove(int_path)
 
@@ -261,12 +258,11 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
 def plotPF(directory, showImage=0):
     # Plot Polar Image
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    config = _readCONFIG(os.path.dirname(directory))
 
-    config = _readCONFIG(directory)
     (raw_file, directory, v_min, v_max, logscale,
      phi_offset, sample, neighborhood_size,
      threshold, square_size) = _readConfigDict(directory)
-
     ctn_number = config.getint('db', 'ctn_number')
     step = (v_max - v_min) / ctn_number
     contour_levels = np.arange(v_min, v_max, step)
@@ -331,6 +327,7 @@ def main(directory):
 
 
 if __name__ == '__main__':
+    import measurementMTwinsDensity
     main(os.path.abspath(
         os.path.join(os.path.dirname(sys.argv[0]), 'sample')))
     print('This is a sample display.')
