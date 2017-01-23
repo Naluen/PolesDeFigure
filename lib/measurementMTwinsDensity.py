@@ -17,34 +17,37 @@ Auto-trace function was added.
 
 from __future__ import print_function
 
+import lib.__init__
 import configparser
 import csv
+import glob
 import os
 import sys
-
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as scio
+import logging
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
+from PyQt5.QtWidgets import QFileDialog
 from matplotlib.colors import LogNorm
-
+from . import read_input_intensity as rii
 
 try:
-    import configparser
+    from .creatLIb import reCipe as reCipe
+    from .render import render as render
 except ImportError:
-    # for Python2
-    import ConfigParser as configparser
+    from creatLIb import reCipe as reCipe
+    from render import render as render
 
 
-def _readConfig(configdic):
+def _read_config(configdic):
     """Read Config Files."""
     config = configparser.ConfigParser()
-
     config.read([
         os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
         os.path.join(configdic, 'config.ini')
-        ])
+    ])
 
     sample = config.get('db', 'tiki')
     # Fichier d'intensity created par le programme Figure_de_Poles
@@ -67,25 +70,44 @@ def _readConfig(configdic):
     return para
 
 
-def beamIntensity(directory, sample):
+def beam_intensity(directory, sample):
     # Get the input beam intensity.
-    config = configparser.ConfigParser()
+    logger = logging.getLogger(__name__)
+    default_beam_intensity_file_list = [
+        os.path.join(directory, 'beam1mm.raw'),
+        os.path.join(directory, 'beam8mm.raw')]
+    if all([os.path.isfile(i) for i in default_beam_intensity_file_list]):
+        input_intensity = np.mean(
+            [rii.main(i) for i in default_beam_intensity_file_list])
 
-    config.read([
-        os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
-        os.path.join(directory, 'config.ini')
-        ])
-    try:
-        inp_intensity = config.getint('db', 'beam_intensity')
-    except:
-        inp_intensity = 6000*8940
-    inp_intensity = float(inp_intensity)
+    else:
+        beam_intensity_file_list = QFileDialog.getOpenFileNames(
+            #
+            caption='Choose Intensity File...',
+            directory=directory,
+            filter="RAW files (*.raw)"
+        )
+        logger.info('Reading Intensity File...')
 
-    return inp_intensity
+        if beam_intensity_file_list[0]:
+            beam_intensity_file = beam_intensity_file_list[0]
+
+            logger.info('Intensity file names: %s' % beam_intensity_file)
+
+            input_intensity = np.mean(list(map(rii.main, beam_intensity_file)))
+
+            logger.debug('Intensity = %f' % input_intensity)
+        else:
+            input_intensity = 6000 * 8940
+            logger.warning(
+                'Intensity has been set to Default Value 5.364*10^7')
+        input_intensity = float(input_intensity)
+
+    return input_intensity
 
 
 def calculation(p, x_offset=0, y_offset=0, sqa=1):
-    """Calculation intergration.
+    """Calculation integration.
 
     Args:
     x: X coordinate parameters.beamIntensity(directory)
@@ -98,7 +120,7 @@ def calculation(p, x_offset=0, y_offset=0, sqa=1):
     MT_seul: region path chosen to plot.
     """
     [data, x, y, square_size, khi_max, phi_max] = p
-    # InitializationbeamIntensity(directory)
+    # Initialization Beam Intensity(directory)
     MT_int = []
     MT_points = []
     bruits = []  # contient l'intensity des bruits autour des MT
@@ -188,14 +210,13 @@ def _Sq(data, x, y, size, x_offset=0, y_offset=0):
     return intensity, b * p
 
 
-def correction(sample, chi, thickness):
+def correction(sample, chi):
     theta = 14.22  # for GaP
     omega = 14.22  # for GaP
-    if thickness:
-        thickness = thickness
-    else:
-        thickness = 900/10000
-
+    try:
+        thickness = reCipe(sample).readTHICKness() / 10000
+    except:
+        thickness = 900 / 10000
     e_Angle = 90 - np.rad2deg(
         np.arccos(
             np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(theta))))
@@ -249,13 +270,6 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
 
     labeled, num_objects = ndimage.label(maxima)
     x, y = [], []  # x,y contain positions of local maxima
-
-    config = configparser.ConfigParser()
-
-    config.read([
-        os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
-        os.path.join(directory, 'config.ini')
-        ])
 
     # ----- plot 2D POSITIONS DES PICS A MESURER------
     # x = [90, 180, 208.278, 315.071]
@@ -326,7 +340,10 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
     plt.colorbar(im, ax=ax, extend='max', fraction=0.046, pad=0.04)
     savename = os.path.normpath(
         os.path.join(directory, ("MT_density_" + sample + ".png")))
-    plt.savefig(savename, bbox_inches='tight')
+    plt.savefig(
+        savename,
+        dpi=1000,
+        bbox_inches='tight')
     if ecriture_log:
         headers = ["MT-A", "MT-C", "MT-B", "MT-D"]
         MT_seul1 = []
@@ -349,9 +366,8 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
             f.write("Bruit de fond: %s" % str(bruits))
             f.write(os.linesep)
             f.write(
-                ("Nombre de points dans\
-                 chaque carres bruits: %s" % str(aire_bruit))
-                )
+                "Nombre de points dans chaque carres bruits: %s" % str(
+                    aire_bruit))
             f.write(os.linesep)
             f.write("MT intensity: %s" % str(MT_int))
             f.write(os.linesep)
@@ -362,31 +378,42 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
 
     if showImage:
         plt.show()
-    InpIntensity = beamIntensity(directory, sample)
+    inp_intensity = beam_intensity(directory, sample)
     # Fix the error of MT intensity.
-    MT_seul1 = [i * 10000 / InpIntensity for i in MT_seul1]
+    MT_seul1 = [i * 10000 / inp_intensity for i in MT_seul1]
     # Create the table contains the MT intensity.
-    mt_table_file = os.path.join(directory, '{0}_result.csv'.format(sample))
-    if config.has_option('db', 'thickness'):
-        thickness = int(config.get('db', 'thickness'))
-    else:
-        thickness = None
+    mt_table_file = os.path.join(directory, '{0}_table.tex'.format(sample))
     with open(mt_table_file, 'w') as tableTeX:
+        thickness = reCipe(sample).readTHICKness()
+        eta = [correction(sample, x) for x in y]
 
-        eta = [correction(sample, x, thickness) for x in y]
+        if thickness:
+            MT_seul1[0] = MT_seul1[0] * 0.939691064
+            MT_seul1[1] = MT_seul1[1] * 0.426843274 / (eta[1] / eta[2])
+            MT_seul1[2] = MT_seul1[2] * 0.72278158 / (eta[0] / eta[2])
+            MT_seul1[3] = MT_seul1[3] * 0.666790711 / (eta[3] / eta[2])
+            MT_seul1 = [round(i, 3) for i in MT_seul1]
+            MTmt = "&".join(map(str, MT_seul1))
+            context = {
+                'MT': r"Value&{0}&{1:.2f}\\".format(MTmt, sum(MT_seul1))}
 
-        MT_seul1[0] = MT_seul1[0] * 0.939691064
-        MT_seul1[1] = MT_seul1[1] * 0.426843274 / (eta[1] / eta[2])
-        MT_seul1[2] = MT_seul1[2] * 0.72278158 / (eta[0] / eta[2])
-        MT_seul1[3] = MT_seul1[3] * 0.666790711 / (eta[3] / eta[2])
-        spamwriter = csv.writer(tableTeX,  dialect='excel')
-        spamwriter.writerow(MT_seul1)
-    return savename
+            mt_twin_table_template = os.path.join(
+                os.path.dirname(sys.argv[0]),
+                'templates',
+                'MTtable.tex'
+            )
+            data = render(mt_twin_table_template, context)
+            tableTeX.write(data)
+        else:
+            print(r"Could not calculate MT instensity for no recipe.")
+            data = None
+    return {'savename': savename, 'inp_intensity': inp_intensity}
 
 
 if __name__ == '__main__':
+    import logging
     samplePath = os.path.abspath(
         os.path.join(os.path.dirname(sys.argv[0]), 'sample'))
-    para = _readConfig(samplePath)
+    para = _read_config(samplePath)
     main(samplePath, os.path.join(samplePath, "pf_int"), para)
     print('This is a sample display.')

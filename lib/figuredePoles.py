@@ -17,34 +17,33 @@ Fixed the bug of PF fig position.
 from __future__ import print_function, unicode_literals
 
 import codecs
+import logging
+import os
+import re
 import shutil
+import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as scio
-
-try:
-    import configparser
-except ImportError:
-    # for Python2
-    import ConfigParser as configparser
-import matplotlib.pyplot as plt
-import os
-# import time
-
-import re
 from matplotlib.colors import LogNorm
+
 from lib import measurementMTwinsDensity as measurementMTwinsDensity
-# import measurementMTwinsDensity as measurementMTwinsDensity
-import sys
 
 PY2 = sys.version_info[0] == 2
 
 if PY2:
+    # import Tkinter as tk
+    # import tkFileDialog as filedialog
     from lib.bruker import convert_raw_to_uxd
-    # from bruker import convert_raw_to_uxd
+    import ConfigParser as configparser
 else:
+    # import tkinter as tk
+    # from tkinter import filedialog
     from lib.bruker3 import convert_raw_to_uxd
-    # from bruker3 import convert_raw_to_uxd
+    import configparser
+
+logger = logging.getLogger(__name__)
 
 
 def _generate_data_file(raw_file):
@@ -102,7 +101,7 @@ def _generate_data_file(raw_file):
     return int_path
 
 
-def _shiftAngel(intensity, alpha):
+def _shift_angel(intensity, alpha):
     """Shift the intensity fig.
 
     shift the intensity fig  towards left for alpha degree and add the part
@@ -118,10 +117,10 @@ def _shiftAngel(intensity, alpha):
     (xlength, ylength) = intensity.shape
     intensity1 = np.zeros(shape=intensity.shape)
     if alpha is not 0:
-        intensity1[:(xlength - alpha) % xlength, :] = intensity[
-            (xlength + alpha) % xlength:, :]
-        intensity1[(xlength - alpha) % xlength:, :] = intensity[
-            :(xlength + alpha) % xlength, :]
+        intensity1[:(xlength - alpha) % xlength,
+                   :] = intensity[(xlength + alpha) % xlength:, :]
+        intensity1[(xlength - alpha) % xlength:,
+                   :] = intensity[:(xlength + alpha) % xlength, :]
     else:
         intensity1 = intensity
 
@@ -148,17 +147,23 @@ def _load_data(int_path, phi_offset):
 
 
 def _readCONFIG(directory):
+    if os.path.isfile(directory):
+        directory = os.path.dirname(directory)
     config = configparser.ConfigParser()
-
     config.read([
         os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
         os.path.join(directory, 'config.ini')
-        ])
+    ])
+    if not os.path.isfile(os.path.join(directory, 'config.ini')):
+        shutil.copy(
+            os.path.join(
+                os.path.dirname(sys.argv[0]), 'config.ini'), directory)
     return config
 
 
 def _readConfigDict(directory):
     """Read the config."""
+    print(directory)
     config = _readCONFIG(os.path.dirname(directory))
 
     if os.path.isfile(directory):
@@ -185,6 +190,7 @@ def _readConfigDict(directory):
             sample = (re.findall(r'\d\d\d\d',
                                  directory, flags=re.IGNORECASE))[-1]
     except:
+        # searchOBJ=re.findall(r'S\d\d\d\d', directory, flags=re.IGNORECASE)
         if config.has_option('db', 'sample'):
             sample = config.get('db', 'sample')
         else:
@@ -200,11 +206,11 @@ def _setConfig(config, phi, phi_offset, chi, directory, sample):
     config.set("db", "phi", str(phi[-1] - phi_offset))
     config.set("db", "chi", str(chi[-1, -1]))
     config.set("db", "directory", directory)
-    config.set("db", "Sample_title", sample)
+    config.set("db", "tiki", sample)
     config.write(open(os.path.join(directory, 'config.ini'), "w"))
 
 
-def plot2D(directory, measurement=1, removeCache=1, showImage=0):
+def plot2D(directory, measurement=True, removeCache=True, showImage=False):
     """Plot 2D Images."""
     # ----- plot 2D -------------------------------------------------------
     (raw_file, directory, v_min, v_max, logscale,
@@ -213,6 +219,7 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
 
     int_path = _generate_data_file(raw_file)
 
+    # uxd_file = raw_file.replace("raw", "uxd")
     values, phi, chi, phiCopy = _load_data(int_path, phi_offset)
     config = _readCONFIG(directory)
     _setConfig(config, phiCopy, phi_offset, chi, directory, sample)
@@ -222,7 +229,7 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
     (xlength, ylength) = values.shape
     phi_offset = int(phi_offset)
     values2d = values
-    values2d = _shiftAngel(values2d, 360 - int(phiCopy[-1]))
+    values2d = _shift_angel(values2d, 360 - int(phiCopy[-1]))
     im = plt.imshow(
         values2d.T, origin="lower", norm=LogNorm(vmin=v_min, vmax=v_max))
     plt.colorbar(im, ax=ax2d, extend='max', fraction=0.046, pad=0.04)
@@ -231,7 +238,10 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
     plt.title(sample + "\n")
 
     savename = os.path.join(directory, sample + "_2D.png")
-    plt.savefig(savename, bbox_inches='tight')
+    plt.savefig(
+        savename,
+        dpi=1000,
+        bbox_inches='tight')
 
     # if the image will be shown, default no.
     if showImage:
@@ -242,27 +252,29 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
     data['int'] = values2d.T
     scio.savemat(int_path, data)
 
-    # Mearsure MT Intensity.
+    # Measure MT Intensity.
     para = (
         phiCopy[-1] - phi_offset, chi[-1], v_min, v_max, sample,
         neighborhood_size, threshold, square_size)
     if measurement:
-        measurementMTwinsDensity.main(directory, int_path, para, showImage)
-    # Remove the cache files, default yes.
+        para = measurementMTwinsDensity.main(
+            directory, int_path, para, showImage)
+    # Remove the cache files,default yes.
     if removeCache:
         os.remove(int_path)
 
-    return savename
+    return para
 
 
 def plotPF(directory, showImage=0):
-    # Plot Polar Image
+    # -- Polar plot... ------------------------------------------------
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-    config = _readCONFIG(os.path.dirname(directory))
 
+    config = _readCONFIG(directory)
     (raw_file, directory, v_min, v_max, logscale,
      phi_offset, sample, neighborhood_size,
      threshold, square_size) = _readConfigDict(directory)
+
     ctn_number = config.getint('db', 'ctn_number')
     step = (v_max - v_min) / ctn_number
     contour_levels = np.arange(v_min, v_max, step)
@@ -299,7 +311,10 @@ def plotPF(directory, showImage=0):
 
     cb.set_label(cblabel, size=15)  # put a label on CB
     plt.title(sample + "\n")
-    plt.savefig(savename, bbox_inches='tight')
+    plt.savefig(
+        savename,
+        dpi=1000,
+        bbox_inches='tight')
     # if the image will be shown, default no.
     if showImage:
         plt.show()
@@ -327,7 +342,6 @@ def main(directory):
 
 
 if __name__ == '__main__':
-    import measurementMTwinsDensity
     main(os.path.abspath(
-        os.path.join(os.path.dirname(sys.argv[0]), 'sample')))
+        os.path.join(os.path.dirname(sys.argv[0]), 'sample')), 1, 0, 0)
     print('This is a sample display.')
