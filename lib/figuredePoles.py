@@ -38,7 +38,7 @@ from lib import measurementMTwinsDensity as measurementMTwinsDensity
 import sys
 
 from lib.bruker3 import convert_raw_to_uxd
-    # from bruker3 import convert_raw_to_uxd
+# from bruker3 import convert_raw_to_uxd
 
 
 def _generate_data_file(raw_file):
