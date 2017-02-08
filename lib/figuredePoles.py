@@ -37,13 +37,7 @@ from lib import measurementMTwinsDensity as measurementMTwinsDensity
 # import measurementMTwinsDensity as measurementMTwinsDensity
 import sys
 
-PY2 = sys.version_info[0] == 2
-
-if PY2:
-    from lib.bruker import convert_raw_to_uxd
-    # from bruker import convert_raw_to_uxd
-else:
-    from lib.bruker3 import convert_raw_to_uxd
+from lib.bruker3 import convert_raw_to_uxd
     # from bruker3 import convert_raw_to_uxd
 
 

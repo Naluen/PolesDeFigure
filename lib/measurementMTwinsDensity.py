@@ -28,6 +28,7 @@ import scipy.io as scio
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 from matplotlib.colors import LogNorm
+from . import read_input_intensity as rii
 
 
 try:
@@ -75,10 +76,32 @@ def beamIntensity(directory, sample):
         os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
         os.path.join(directory, 'config.ini')
         ])
-    try:
-        inp_intensity = config.getint('db', 'beam_intensity')
-    except:
-        inp_intensity = 6000*8940
+
+    default_beam_intensity_file_list = [
+        os.path.join(directory, 'beam1mm.raw'),
+        os.path.join(directory, 'beam8mm.raw')]
+    if all([os.path.isfile(i) for i in default_beam_intensity_file_list]):
+        inp_intensity = np.mean(
+            [rii.main(i) for i in default_beam_intensity_file_list])
+
+    else:
+        beam_intensity_file_list = QFileDialog.getOpenFileNames(
+            #
+            caption='Choose Intensity File...',
+            directory=directory,
+            filter="RAW files (*.raw)"
+        )
+
+        if beam_intensity_file_list[0]:
+            beam_intensity_file = beam_intensity_file_list[0]
+            inp_intensity = np.mean(list(map(rii.main, beam_intensity_file)))
+        else:
+            try:
+                inp_intensity = config.getint('db', 'beam_intensity')
+            except:
+                print("Intensity Error!")
+                inp_intensity = 16000*8940
+
     inp_intensity = float(inp_intensity)
 
     return inp_intensity
@@ -194,21 +217,22 @@ def correction(sample, chi, thickness):
     if thickness:
         thickness = thickness
     else:
-        thickness = 900/10000
+        thickness = 900./10000.
+        print("Thickness was not provided")
 
-    e_Angle = 90 - np.rad2deg(
+    e_Angle = 90. - np.rad2deg(
         np.arccos(
             np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(theta))))
-    i_Angle = 90 - np.rad2deg(
+    i_Angle = 90. - np.rad2deg(
         np.arccos(
             np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(omega))))
     offset = e_Angle - i_Angle
-    eta = 1 / 37.6152  # 1/um at 8.05keV (CXRO)
+    eta = 1. / 37.6152  # 1/um at 8.05keV (CXRO)
     p = np.sin(np.deg2rad(e_Angle + offset))
     q = np.sin(np.deg2rad(e_Angle - offset))
     coeff_B = p / (p + q)
-    coeff_C = 1 - np.exp(-eta * thickness * (1 / p + 1 / q))
-    coeff = coeff_B * (1 / eta) * coeff_C
+    coeff_C = 1. - np.exp(-eta * thickness * (1. / p + 1. / q))
+    coeff = coeff_B * (1. / eta) * coeff_C
 
     return coeff
 
@@ -368,13 +392,12 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
     # Create the table contains the MT intensity.
     mt_table_file = os.path.join(directory, '{0}_result.csv'.format(sample))
     if config.has_option('db', 'thickness'):
-        thickness = int(config.get('db', 'thickness'))
+        thickness = float(config.get('db', 'thickness'))
     else:
         thickness = None
     with open(mt_table_file, 'w') as tableTeX:
 
         eta = [correction(sample, x, thickness) for x in y]
-
         MT_seul1[0] = MT_seul1[0] * 0.939691064
         MT_seul1[1] = MT_seul1[1] * 0.426843274 / (eta[1] / eta[2])
         MT_seul1[2] = MT_seul1[2] * 0.72278158 / (eta[0] / eta[2])
