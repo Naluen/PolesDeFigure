@@ -293,7 +293,10 @@ def plotPF(directory, showImage=0):
 
     cb.set_label(cblabel, size=15)  # put a label on CB
     plt.title(sample + "\n")
-    plt.savefig(savename, bbox_inches='tight')
+    plt.savefig(
+        savename,
+        bbox_inches='tight'
+        )
     # if the image will be shown, default no.
     if showImage:
         plt.show()
@@ -314,7 +317,7 @@ def main(directory):
     """
 
     plot2D(directory)
-    plotPF(directory)
+    plotPF(directory, showImage=1)
     print('Finished')
 
     return directory

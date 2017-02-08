@@ -65,14 +65,7 @@ def _read_config(configdic):
 
 def beam_intensity(directory, sample):
     # Get the input beam intensity.
-    logger = logging.getLogger(__name__)
-    default_beam_intensity_file_list = [
-        os.path.join(directory, 'beam1mm.raw'),
-        os.path.join(directory, 'beam8mm.raw')]
-    if all([os.path.isfile(i) for i in default_beam_intensity_file_list]):
-        input_intensity = np.mean(
-            [rii.main(i) for i in default_beam_intensity_file_list])
-
+    config = configparser.ConfigParser()
     config.read([
         os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
         os.path.join(directory, 'config.ini')
@@ -104,7 +97,7 @@ def beam_intensity(directory, sample):
 
     inp_intensity = float(inp_intensity)
 
-    return input_intensity
+    return inp_intensity
 
 
 def calculation(p, x_offset=0, y_offset=0, sqa=1):
@@ -211,7 +204,7 @@ def _Sq(data, x, y, size, x_offset=0, y_offset=0):
     return intensity, b * p
 
 
-def correction(sample, chi):
+def correction(sample, chi, thickness):
     theta = 14.22  # for GaP
     omega = 14.22  # for GaP
     if thickness:
@@ -252,6 +245,12 @@ def count(data, square, khi_max, phi_max):
 
 def main(directory, int_file, para, showImage=1, ecriture_log=1):
     """Main Function."""
+    config = configparser.ConfigParser()
+    config.read([
+        os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
+        os.path.join(directory, 'config.ini')
+    ])
+    logging.info("Read Config file from {0}".format(directory))
     (phi_max, khi_max, v_min, v_max, sample,
      neighborhood_size, threshold, square_size) = para
     phi_max = int(phi_max)
@@ -274,9 +273,6 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
     labeled, num_objects = ndimage.label(maxima)
     x, y = [], []  # x,y contain positions of local maxima
 
-    # ----- plot 2D POSITIONS DES PICS A MESURER------
-    # x = [90, 180, 208.278, 315.071]
-    # y = [25.5403, 17.5806, 10.9476, 18.9073]
     if not x:
         x = [90, 200, 270, 340]
         y = [10, 16, 19, 15.5]
@@ -299,6 +295,7 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
 
         x_Z = [90, 200, 270, 10]
         y_Z = [10, 16, 19, 15.5]
+        # If the last point beyond the right border, select from the left
         xp = [np.linspace(xL - 10, xL + 10, 21) for xL in x_Z]
         yp = [np.linspace(yL - 5, yL + 5, 11) for yL in y_Z]
         index_Z = np.zeros((len(xp[1]), len(yp[1])))
@@ -345,7 +342,7 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
         os.path.join(directory, ("MT_density_" + sample + ".png")))
     plt.savefig(
         savename,
-        dpi=1000,
+        dpi=500,
         bbox_inches='tight')
     if ecriture_log:
         headers = ["MT-A", "MT-C", "MT-B", "MT-D"]
@@ -400,7 +397,6 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
         spamwriter = csv.writer(tableTeX,  dialect='excel')
         spamwriter.writerow(MT_seul1)
     return savename
-
 
 
 if __name__ == '__main__':
