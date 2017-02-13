@@ -17,21 +17,54 @@ Auto-trace function was added.
 
 from __future__ import print_function
 
-import lib.__init__
 import configparser
 import csv
-import glob
+import logging.config
 import os
 import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as scio
-import logging
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
-from PyQt5.QtWidgets import QFileDialog
 from matplotlib.colors import LogNorm
+
 from . import read_input_intensity as rii
+
+try:
+    from Tkinter import Tk
+    from tkFileDialog import askopenfilename
+except ImportError:
+    from tkinter import Tk
+    from tkinter.filedialog import askopenfilename
+
+logging.config.dictConfig({
+    'version': 1,
+    'disable_existing_loggers': False,  # this fixes the problem
+
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'default': {
+            'filename': os.path.join(
+                os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'standard',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['default'],
+            'level': 'DEBUG',
+            'propagate': True
+        }
+    }
+})
 
 
 def _read_config(configdic):
@@ -42,25 +75,25 @@ def _read_config(configdic):
         os.path.join(configdic, 'config.ini')
     ])
 
-    sample = config.get('db', 'tiki')
-    # Fichier d'intensity created par le programme Figure_de_Poles
+    logging.info('reda')
+    print(dict(config['db']))
+    preference_dict = dict(config['db'])
+
+    sample = config.get('db', 'sample')
     phi_max = int(config.getfloat('db', 'phi'))  # x
     khi_max = int(config.getfloat('db', 'chi'))  # y
     v_min = config.getint('db', 'v_min')
     v_max = config.getint('db', 'v_max')
     neighborhood_size = config.getint('db', 'neighborhood_size')
-    # pour filtrer les maxima locaux
     threshold = config.getint('db', 'threshold')
-    # pour filtrer les maxima locaux
     square_size = list(map(int, config.get('db', 'square_size').split(',')))
-    # Taille des carres entourer les reflexions width,height
     square_size = np.asarray(square_size)
 
     para = (
         phi_max, khi_max, v_min, v_max, sample,
         neighborhood_size, threshold, square_size)
 
-    return para
+    return preference_dict
 
 
 def beam_intensity(directory, sample):
@@ -69,7 +102,7 @@ def beam_intensity(directory, sample):
     config.read([
         os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
         os.path.join(directory, 'config.ini')
-        ])
+    ])
 
     default_beam_intensity_file_list = [
         os.path.join(directory, 'beam1mm.raw'),
@@ -79,11 +112,11 @@ def beam_intensity(directory, sample):
             [rii.main(i) for i in default_beam_intensity_file_list])
 
     else:
-        beam_intensity_file_list = QFileDialog.getOpenFileNames(
-            #
-            caption='Choose Intensity File...',
-            directory=directory,
-            filter="RAW files (*.raw)"
+        Tk().withdraw()
+        beam_intensity_file_list = askopenfilename(
+            title='Choose Intensity File...',
+            initialdir=directory,
+            filetypes=[("Raw files", "*.raw")]
         )
         if beam_intensity_file_list[0]:
             beam_intensity_file = beam_intensity_file_list[0]
@@ -93,7 +126,7 @@ def beam_intensity(directory, sample):
                 inp_intensity = config.getint('db', 'beam_intensity')
             except:
                 print("Intensity Error!")
-                inp_intensity = 16000*8940
+                inp_intensity = 16000 * 8940
 
     inp_intensity = float(inp_intensity)
 
@@ -210,7 +243,7 @@ def correction(sample, chi, thickness):
     if thickness:
         thickness = thickness
     else:
-        thickness = 900./10000.
+        thickness = 900. / 10000.
         print("Thickness was not provided")
 
     e_Angle = 90. - np.rad2deg(
@@ -230,27 +263,35 @@ def correction(sample, chi, thickness):
     return coeff
 
 
-def count(data, square, khi_max, phi_max):
-    """Count data."""
-    intensity = 0
-    points = 0
-
-    for x in range(khi_max):
-        for y in range(phi_max):
-            if square.contains_point([x, y]):
-                intensity = intensity + data[x, y]
-                points = points + 1
-    return intensity, points
+# def count(data, square, khi_max, phi_max):
+#     """
+#     Args:
+#     data - the image data.
+#     square - the region contains peaks
+#     Return:
+#     intensity - the intensity sum of peak region.
+#     points - the pixel number of peak region.
+#     """
+#     intensity = 0
+#     points = 0
+#
+#     for x in range(khi_max):
+#         for y in range(phi_max):
+#             if square.contains_point([x, y]):
+#                 intensity = intensity + data[x, y]
+#                 points = points + 1
+#     return intensity, points
 
 
 def main(directory, int_file, para, showImage=1, ecriture_log=1):
     """Main Function."""
+    logger = logging.getLogger(__name__)
+
     config = configparser.ConfigParser()
     config.read([
         os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
         os.path.join(directory, 'config.ini')
     ])
-    logging.info("Read Config file from {0}".format(directory))
     (phi_max, khi_max, v_min, v_max, sample,
      neighborhood_size, threshold, square_size) = para
     phi_max = int(phi_max)
@@ -388,19 +429,19 @@ def main(directory, int_file, para, showImage=1, ecriture_log=1):
     else:
         thickness = None
     with open(mt_table_file, 'w') as tableTeX:
-
         eta = [correction(sample, x, thickness) for x in y]
         MT_seul1[0] = MT_seul1[0] * 0.939691064
         MT_seul1[1] = MT_seul1[1] * 0.426843274 / (eta[1] / eta[2])
         MT_seul1[2] = MT_seul1[2] * 0.72278158 / (eta[0] / eta[2])
         MT_seul1[3] = MT_seul1[3] * 0.666790711 / (eta[3] / eta[2])
-        spamwriter = csv.writer(tableTeX,  dialect='excel')
+        spamwriter = csv.writer(tableTeX, dialect='excel')
         spamwriter.writerow(MT_seul1)
     return savename
 
 
 if __name__ == '__main__':
     import logging
+
     samplePath = os.path.abspath(
         os.path.join(os.path.dirname(sys.argv[0]), 'sample'))
     para = _read_config(samplePath)

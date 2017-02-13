@@ -16,7 +16,8 @@ except ImportError:
 
 
 Tk().withdraw()
-# we don't want a full GUI, so keep the root window from appearing
-filename = askopenfilename()
-# show an "Open" dialog box and return the path to the selected file
+filename = askopenfilename(
+    title='Choose Poles Figure File...',
+    filetypes=[("Raw files","*.raw")]
+)
 gridder = fpf.main(filename)

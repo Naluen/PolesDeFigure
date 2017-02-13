@@ -14,15 +14,12 @@
 
 from __future__ import print_function
 from __future__ import unicode_literals
-from numpy import pi as pi
-from numpy import arctan as atan
-from numpy import tan as tan
+
+import collections
+import copy
+import io
 import os
 import struct
-import copy
-import types
-import collections
-import io
 
 
 #
@@ -30,36 +27,34 @@ import io
 # serves as an interface for (read-)accessing _metadata using dictionary syntax
 #
 class Metadata(object):
-
     def __init__(self):
         # use OrderedDictionary if possible ( python > 2.7 )
-        if hasattr( collections, 'OrderedDict' ):
+        if hasattr(collections, 'OrderedDict'):
             self._metadata = collections.OrderedDict()
         else:
-            self._metadata = { }
+            self._metadata = {}
 
-    def __getitem__( self, key ):
-        return self._metadata[ key ]
+    def __getitem__(self, key):
+        return self._metadata[key]
 
-    def __setitem__( self, key, val ):
-        self._metadata[ key ] = val
+    def __setitem__(self, key, val):
+        self._metadata[key] = val
 
-    def __delitem__( self, key ):
-        del self._metadata[ key ]
+    def __delitem__(self, key):
+        del self._metadata[key]
 
     def __getattr__(self, key):
         if key in self._metadata:
-            return self._metadata[ key]
+            return self._metadata[key]
         else:
             raise AttributeError('Key\'%s\' does not exists' % key)
-
 
 
 class Scan(Metadata):
     def __init__(self):
         Metadata.__init__(self)
 
-        self.data = []# array.array('f')          # holding scan data
+        self.data = []  # array.array('f')          # holding scan data
 
     def __len__(self):
         return len(self.data)
@@ -70,23 +65,22 @@ class Scan(Metadata):
     def __str__(self):
         return self.pretty_format()
 
-    def pretty_format(self, print_header = True):
+    def pretty_format(self, print_header=True):
         import io
         out = io.StringIO()
         # meta data
-        if print_header :
-            for k,v in list(self._metadata.items()) :
-                if float == type(v) :
-                    print("_{0:<15} = {1:.6f}".format(k,v), file=out)
+        if print_header:
+            for k, v in list(self._metadata.items()):
+                if float == type(v):
+                    print("_{0:<15} = {1:.6f}".format(k, v), file=out)
                 else:
-                    print("_{0:<15} = {1}".format(k,v), file=out)
+                    print("_{0:<15} = {1}".format(k, v), file=out)
 
         # print scan data
         if self.data:
-            for (x,y) in self.data:
-                print("{0:.6f}\t{1:.6f}".format(x,y), file=out)
+            for (x, y) in self.data:
+                print("{0:.6f}\t{1:.6f}".format(x, y), file=out)
         return out.getvalue()
-
 
 
 class Dataset(Metadata):
@@ -94,68 +88,60 @@ class Dataset(Metadata):
 
     def __init__(self):
         Metadata.__init__(self)
-        self.scans =  []
+        self.scans = []
 
     # len(ds) : return number of scans
     def __len__(self):
-        return len( self.scans )
+        return len(self.scans)
 
     def __str__(self):
         return self.pretty_format()
 
     def __repr__(self):
-        if 0 == len(self) :
+        if 0 == len(self):
             return '<Empty dataset at 0x{1:x}>'
         else:
             return '<Dataset containing {0:d} scan(s) at 0x{1:x}>'.format(len(self), id(self))
 
-    def pretty_format(self, print_header = True ):
+    def pretty_format(self, print_header=True):
         '''print dataset's header(optional) and each scan'''
         import io
         out = io.StringIO()
 
         # print dataset header if told so
         if print_header:
-            for k,v in list(self._metadata.items()):
-                if float == type(v) :
-                    print("_{0} = {1:.6f}".format(k,v), file=out) # 6 decimal for float
+            for k, v in list(self._metadata.items()):
+                if float == type(v):
+                    print("_{0} = {1:.6f}".format(k, v), file=out)  # 6 decimal for float
                 else:
                     try:
-                        print(r"_{0} = {1}".format(k,str(v).decode('ISO-8859-1')), file=out)
+                        print(r"_{0} = {1}".format(k, str(v).decode('ISO-8859-1')), file=out)
                     except AttributeError:
-                        print(r"_{0} = {1}".format(k,str(v)), file=out)
+                        print(r"_{0} = {1}".format(k, str(v)), file=out)
 
-        for i in range( len(self.scans) ) :
+        for i in range(len(self.scans)):
             if print_header:
-                out.write( "\n; ( Data for Range number {0:d} )\n".format(i) )
-            out.write( self.scans[i].pretty_format(print_header) + "\n" )
+                out.write("\n; ( Data for Range number {0:d} )\n".format(i))
+            out.write(self.scans[i].pretty_format(print_header) + "\n")
             pass
-
 
         return out.getvalue()
 
-
-
     # check whether selected dataset handler can parse given
 
-    def validate(self,f=None):
+    def validate(self, f=None):
         return False
 
-    def parse(self,fh):
+    def parse(self, fh):
         pass
 
-    def merge( self, foreign ):
+    def merge(self, foreign):
         c = copy.deepcopy(self)
-        c.scans.extend( foreign.scans )
+        c.scans.extend(foreign.scans)
         return c
 
 
-class DatasetDiffractPlusV3( Dataset ):
-    '''
-    DataSet - container for a series of scans
-    DataSetBruker
-    '''
-
+class DatasetDiffractPlusV3(Dataset):
     FILE_HEADER_LENGTH = 712
 
     #
@@ -170,20 +156,20 @@ class DatasetDiffractPlusV3( Dataset ):
     #
     file_header_desc_tbl = [
         # ( name                  , type,   start, len )
-        ( '_FILE_STATUS_CODE'      , 'I'  ,    8,     4 ), # le tiret signifie qu'il va etre supprime/remplace
-        ( 'RANGE_CNT'             , 'I'  ,   12,     4 ),
-        ( 'DATE'                  , 'str',   16,  10 ),
-        ( 'TIME'                  , 'str',   26,  10 ),
-        ( 'USER'                  , 'str',   36,  72 ),
-        ( 'SAMPLE'             , 'str',   326, 60 ),
-        ( '+SAMPLE'             , 'str',   386, 160 ),
-        ( 'GNONIOMETER_RADIUS'    , 'f',     564,  4 ),
-        ( 'ANODE_MATERIAL'        , 'str',   608,  4 ),
-        ( 'WL1'                   , 'd',     624,  8 ),
-        ( 'WL2'                   , 'd',     632,  8 ),
-        ( 'WL_UNIT'               , 'str',     656,  4 ),
-        ( 'MEASUREMENT TIME'      , 'f',     664,  4 )
-    ] # end of file_header_desc_tbl
+        ('_FILE_STATUS_CODE', 'I', 8, 4),  # le tiret signifie qu'il va etre supprime/remplace
+        ('RANGE_CNT', 'I', 12, 4),
+        ('DATE', 'str', 16, 10),
+        ('TIME', 'str', 26, 10),
+        ('USER', 'str', 36, 72),
+        ('SAMPLE', 'str', 326, 60),
+        ('+SAMPLE', 'str', 386, 160),
+        ('GNONIOMETER_RADIUS', 'f', 564, 4),
+        ('ANODE_MATERIAL', 'str', 608, 4),
+        ('WL1', 'd', 624, 8),
+        ('WL2', 'd', 632, 8),
+        ('WL_UNIT', 'str', 656, 4),
+        ('MEASUREMENT TIME', 'f', 664, 4)
+    ]  # end of file_header_desc_tbl
 
     #
     # _header_desc_tbl
@@ -195,37 +181,37 @@ class DatasetDiffractPlusV3( Dataset ):
     # etc
     #
     range_header_desc_tbl = [
-            #(name , type , length )
-            ('HEADER_LENGTH',      'I', 0,     4),  # 0 , 304
-            ('STEPS',              'I',  4,    4),  # 4
-            ('OMEGA',        'd',     8, 8),  # 8
-            ('TWOTHETA',       'd',   16,   8),  # 16
-            ('KHI',          'd',     24, 8),  # 24
-            ('PHI',          'd',     32, 8),  # 32
-            ('X',            'd',      40, 8),  # 40
-            ('Y',            'd',      48, 8),  # 48
-            ('Z',            'd',      56, 8),  # 56
-            ('DETECTOR',      'I',      96, 4),  # 96 0x60
-            ('HIGH_VOLTAGE',       'f',  100,    4),  # 100
-            ('AMPLIFIER_GAIN',     'f',   104,   4),  # 10
-            ('AUX1',     'd',   144,   8),  # 144
-            ('AUX2',     'd',   152,   8),  # 144
-            ('AUX3',     'd',   160,   8),  # 144
-            ('SCAN_MODE',          'I',   168,   4),  # 176
-            ('STEP_SIZE',          'd',   176,   8),  # 176
-            ('STEP_SIZE_B',          'd',   184,   8),  # 176
-            ('STEPTIME',      'f',     192, 4),  # 192
-            ('_STEPPING_DRIVE_CODE',      'I',     196, 4),
-            ('TIMESTARTED',                'f',  204,     4),  # 204
-            ('TEMP_RATE',                'f',     212, 4),  # 212
-            ('TEMP_DELAY',                'f',    216,  4),  # 216
-            ('KV',  'I',   224,   4),  # 224
-            ('MA',  'I',    228,  4),  # 228
-            ('RANGE_WL',       'd',      240,  8),  # 240
-            ('_VARYINGPARAMS',       'I',      248,  4),
-            ('_DATUM_LENGTH',       'I',      252,  4),
-            ('SUPPLEMENT_HEADER_SIZE', 'I',  256, 4)  # 256
-            ]   # end of range_header_desc_tbl
+        # (name , type , length )
+        ('HEADER_LENGTH', 'I', 0, 4),  # 0 , 304
+        ('STEPS', 'I', 4, 4),  # 4
+        ('OMEGA', 'd', 8, 8),  # 8
+        ('TWOTHETA', 'd', 16, 8),  # 16
+        ('KHI', 'd', 24, 8),  # 24
+        ('PHI', 'd', 32, 8),  # 32
+        ('X', 'd', 40, 8),  # 40
+        ('Y', 'd', 48, 8),  # 48
+        ('Z', 'd', 56, 8),  # 56
+        ('DETECTOR', 'I', 96, 4),  # 96 0x60
+        ('HIGH_VOLTAGE', 'f', 100, 4),  # 100
+        ('AMPLIFIER_GAIN', 'f', 104, 4),  # 10
+        ('AUX1', 'd', 144, 8),  # 144
+        ('AUX2', 'd', 152, 8),  # 144
+        ('AUX3', 'd', 160, 8),  # 144
+        ('SCAN_MODE', 'I', 168, 4),  # 176
+        ('STEP_SIZE', 'd', 176, 8),  # 176
+        ('STEP_SIZE_B', 'd', 184, 8),  # 176
+        ('STEPTIME', 'f', 192, 4),  # 192
+        ('_STEPPING_DRIVE_CODE', 'I', 196, 4),
+        ('TIMESTARTED', 'f', 204, 4),  # 204
+        ('TEMP_RATE', 'f', 212, 4),  # 212
+        ('TEMP_DELAY', 'f', 216, 4),  # 216
+        ('KV', 'I', 224, 4),  # 224
+        ('MA', 'I', 228, 4),  # 228
+        ('RANGE_WL', 'd', 240, 8),  # 240
+        ('_VARYINGPARAMS', 'I', 248, 4),
+        ('_DATUM_LENGTH', 'I', 252, 4),
+        ('SUPPLEMENT_HEADER_SIZE', 'I', 256, 4)  # 256
+    ]  # end of range_header_desc_tbl
 
     tbl_stepping_drives = {
         0: ("locked coupled", "TWOTHETA"),
@@ -244,7 +230,7 @@ class DatasetDiffractPlusV3( Dataset ):
         13: ("hkl scan", "TWOTHETA"),
         129: ("psd fixed scan", "TWOTHETA"),
         130: ("psd fast scan" "TWOTHETA")
-        }
+    }
 
     def __init__(self, ifh=None):
         Dataset.__init__(self)
@@ -265,8 +251,7 @@ class DatasetDiffractPlusV3( Dataset ):
         fh.seek(pos, os.SEEK_SET)  # just being nice
         return is_rawfile and is_v3
 
-
-# determin_dataset_type and set stepping_drive1,2
+    # determin_dataset_type and set stepping_drive1,2
     def determin_dataset_type(self):
 
         if len(self.scans) < 1:
@@ -288,7 +273,7 @@ class DatasetDiffractPlusV3( Dataset ):
             raise Exception(" Donno how to deal with this kinds of scan ")
 
         # PSD scans
-        if a['_STEPPING_DRIVE_CODE'] in [129, 130] :
+        if a['_STEPPING_DRIVE_CODE'] in [129, 130]:
             self['TYPE'] = 'RSMPlot'
             self['STEPPING_DRIVE1'] = 'OMEGA'
             self['STEPPING_DRIVE2'] = 'TWOTHETA'
@@ -298,206 +283,107 @@ class DatasetDiffractPlusV3( Dataset ):
         # it is assumed that only one axis move during each range
         # so that it is safe to say for 2d scan
         self['TYPE'] = 'TwoDPlot'
-        for drv in [ 'KHI', 'PHI', 'X', 'Y', 'Z','AUX1','AUX2','AUX3' ]:
+        for drv in ['KHI', 'PHI', 'X', 'Y', 'Z', 'AUX1', 'AUX2', 'AUX3']:
             if a[drv] != b[drv]:
                 self['STEPPING_DRIVE1'] = drv
                 self['STEPPING_DRIVE2'] = a['STEPPING_DRIVE']
 
-
-
         pass
-    def parse(self, ifh ):
+
+    def parse(self, ifh):
         # read into seekable buffer
-        f = io.BytesIO( ifh.read())
-        f.seek( 0 , os.SEEK_SET )
+        f = io.BytesIO(ifh.read())
+        f.seek(0, os.SEEK_SET)
 
         # valid file type signature
-        #if not self.validate(f):
-            #raise Exception("The file format is not of 'diffract plus raw file version 3'.")
+        # if not self.validate(f):
+        # raise Exception("The file format is not of 'diffract plus raw file version 3'.")
 
 
-        #(key,type,start,len) in list_table
-        for (k,t,s,l) in self.file_header_desc_tbl :
+        # (key,type,start,len) in list_table
+        for (k, t, s, l) in self.file_header_desc_tbl:
             f.seek(s, os.SEEK_SET)
             buf = f.read(l)
             if 'str' == t:
                 self[k] = buf.rstrip(b'\0')
-            elif 'c' == t :
+            elif 'c' == t:
                 # TODO rather ackward
-                self[k] = ord( struct.unpack(t,buf)[0] )
+                self[k] = ord(struct.unpack(t, buf)[0])
             else:
-                self[k] = struct.unpack(t,buf)[0]
+                self[k] = struct.unpack(t, buf)[0]
 
-        if   1 == self['_FILE_STATUS_CODE'] :
+        if 1 == self['_FILE_STATUS_CODE']:
             self['FILE_STATUS'] = "done"
-        elif 2 == self['_FILE_STATUS_CODE'] :
+        elif 2 == self['_FILE_STATUS_CODE']:
             self['FILE_STATUS'] = "active"
-        elif 3 == self['_FILE_STATUS_CODE'] :
+        elif 3 == self['_FILE_STATUS_CODE']:
             self['FILE_STATUS'] = "aborted"
-        elif 4 == self['_FILE_STATUS_CODE'] :
+        elif 4 == self['_FILE_STATUS_CODE']:
             self['FILE_STATUS'] = "interrupted"
-
 
         # beginning of first range
         f.seek(self.FILE_HEADER_LENGTH, os.SEEK_SET)
 
-        range_start = self.FILE_HEADER_LENGTH # start of first range
-        for i in range( self['RANGE_CNT'] ):
+        range_start = self.FILE_HEADER_LENGTH  # start of first range
+        for i in range(self['RANGE_CNT']):
             scn = Scan()
             scn['SEQ'] = i
 
             # read range headers
-            for (k,t,s,l) in  self.range_header_desc_tbl :
+            for (k, t, s, l) in self.range_header_desc_tbl:
                 f.seek(s + range_start, os.SEEK_SET)
                 buf = f.read(l)
-                if 'str' == t :
+                if 'str' == t:
                     scn[k] = buf.rstrip('\0')
-                elif 'c' == t :
-                    scn[k] = ord( struct.unpack( t, buf )[0] )
+                elif 'c' == t:
+                    scn[k] = ord(struct.unpack(t, buf)[0])
                 else:
-                    scn[k] = struct.unpack(t,buf)[0]
+                    scn[k] = struct.unpack(t, buf)[0]
 
             # some constraint described in file-exchange help file
-            assert scn['_VARYINGPARAMS'] == 0,"non-conforming file format: more than 1 varying parameters in one range "
-            assert scn['_DATUM_LENGTH'] == 4,"non-conforming file format : datum length more than 4 byte "
-            assert scn['_STEPPING_DRIVE_CODE'] not in [9,10,11] , "non-conforming file format, using AUX* drives"
+            assert scn[
+                       '_VARYINGPARAMS'] == 0, "non-conforming file format: more than 1 varying parameters in one range "
+            assert scn['_DATUM_LENGTH'] == 4, "non-conforming file format : datum length more than 4 byte "
+            assert scn['_STEPPING_DRIVE_CODE'] not in [9, 10, 11], "non-conforming file format, using AUX* drives"
 
             # seek to the start of header
-            f.seek( range_start + scn['HEADER_LENGTH'], os.SEEK_SET )
+            f.seek(range_start + scn['HEADER_LENGTH'], os.SEEK_SET)
             # skip supplement header if exists
-            if scn['SUPPLEMENT_HEADER_SIZE'] > 0 :
-                f.read( scn['SUPPLEMENT_HEADER_SIZE'] )
+            if scn['SUPPLEMENT_HEADER_SIZE'] > 0:
+                f.read(scn['SUPPLEMENT_HEADER_SIZE'])
 
-            scn['TYPE'] = self.tbl_stepping_drives[ scn['_STEPPING_DRIVE_CODE']  ][0]
-            scn['STEPPING_DRIVE'] = self.tbl_stepping_drives[ scn['_STEPPING_DRIVE_CODE']  ][1]
+            scn['TYPE'] = self.tbl_stepping_drives[scn['_STEPPING_DRIVE_CODE']][0]
+            scn['STEPPING_DRIVE'] = self.tbl_stepping_drives[scn['_STEPPING_DRIVE_CODE']][1]
             x = scn[scn['STEPPING_DRIVE']]
-            xstep  = scn['STEP_SIZE']
+            xstep = scn['STEP_SIZE']
 
-            for i in range( scn['STEPS'] ):
-                y = struct.unpack('f',f.read(4))[0]
-                scn.data.append((x,y))
-                #scn.xdata.append( x )
-                #scn.xdata.append( y )
+            for i in range(scn['STEPS']):
+                y = struct.unpack('f', f.read(4))[0]
+                scn.data.append((x, y))
+                # scn.xdata.append( x )
+                # scn.xdata.append( y )
                 x = x + xstep
 
             self.scans.append(scn)
             range_start = f.tell()
-        #end of range
-    # end of def parse(self, ifstream )
+            # end of range
+            # end of def parse(self, ifstream )
 
 
-def correc_dist_tth(tth):
-    D1_sd = 347.4  # false distance for sample to det
-    D2_sd = 300
-# print "tth",tth
-# print "min max", min(tth),max(tth)
-    if len(tth) > 1:
-        tth_c = (min(tth) + max(tth)) / 2
-        # print "tth_c",tth_c,min(tth),max(tth)
-        tth_corr = []
-        for tth_current in tth:
-            alpha_1 = tth_current - tth_c
-            alpha_2 = 180.0 / pi * \
-                atan(D1_sd / D2_sd * tan(alpha_1 * pi / 180.0))
-            tth_current_corr = tth_c + alpha_2
-            tth_corr.append(tth_current_corr)
-    else:
-        print("fails with tth = and len(tth) ", tth, len(tth))
-        tth_corr = tth
-    return tth_corr
-
-
-def convert_raw_to_uxd( ifn, ofn ):
-# print(ifn, ofn)
-    ds = DatasetDiffractPlusV3( open( ifn , 'rb') )
+def convert_raw_to_uxd(ifn, ofn):
+    # print(ifn, ofn)
+    ds = DatasetDiffractPlusV3(open(ifn, 'rb'))
     with open(ofn, 'wb') as ofh:
         ofh.write((';(content of file %s)\n' % ifn).encode())
-        ofh.write((ds.pretty_format(print_header = True )).encode('ISO-8859-1'))
+        ofh.write((ds.pretty_format(print_header=True)).encode('ISO-8859-1'))
 
-
-def get_Bruker(uxd_file, correc_tth):
-    data = open(uxd_file, 'r')
-    try:
-        data = open(uxd_file, 'r')
-    except:
-        print("No such a Data file ")
-    omega = []
-    tth_2d = []
-    intensity_2d = []
-    tth = []
-    intensity = []
-    for lines in data.readlines():
-        if not lines.strip():
-            continue
-        elif lines.startswith("_"):
-            if lines.startswith("_OMEGA") or lines.startswith("_THETA"):
-                line = lines.split("=")
-                theta = (line[1])
-            elif lines.startswith("_STEPTIME"):
-                line = lines.split("=")
-                steptime = float(line[1])
-            else:
-                continue
-        elif lines.startswith(";"):
-            if lines.startswith(
-                    "; ( Data for Range number") or lines.startswith("; Data for range"):
-                # copy of partial arrays in total array 2D + correction of false 2Theta  if needed
-                # if len(tth)>1:
-                if correc_tth:
-                    tth = correc_dist_tth(tth)  # tth ## correc_dist_tth(tth)
-                tth_2d.append(tth)
-                intensity_2d.append(intensity)
-                # initialization of partial array
-                tth = []
-                intensity = []
-        else:
-            line = lines.split()
-            dTheta = line[0]
-            i = line[1]
-            omega.append(float(theta))
-            tth.append(float(dTheta))
-            intensity.append(float(i))  # /steptime)
-    if correc_tth:
-        try:
-            # print "len tth before corr",len(tth)
-            tth = correc_dist_tth(tth)
-            # print "len tth after corr",len(tth)
-        except:
-            print("fails to correct tth")
-    try:
-        tth_2d.append(tth)
-        # print "tth ",len(tth)
-    except:
-        print("tth_2d", len(tth_2d))
-        print("len tth", len(tth))
-
-    intensity_2d.append(intensity)
-    data.close()
-    try:
-        tth_2d = tth_2d[1:]
-        tth_2d = np.asarray(tth_2d)
-    except:
-        print("cannot convert tth to 2D correctly")
-    try:
-        intensity_2d = intensity_2d[1:]
-        intensity_2d = np.asarray(intensity_2d)
-    except:
-        print("cannot convert intensity to 2D")
-    try:
-        omega = np.asarray(omega)
-    except:
-        print("cannot convert omega as array")
-    try:
-        omega = omega.reshape(intensity_2d.shape)
-    except:
-        print("cannot reshape ome as intensity_2d")
-    return {"omega": omega, "tth": tth_2d, "data": intensity_2d}
 
 if '__main__' == __name__:
     import sys
+
     if not 3 == len(sys.argv):
         print("this script accept two and only two arguments", file=sys.stderr)
         sys.exit('')
     _, ifn, ofn = sys.argv
 
-    convert_raw_to_uxd( ifn, ofn )
+    convert_raw_to_uxd(ifn, ofn)

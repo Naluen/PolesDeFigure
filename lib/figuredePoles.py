@@ -17,7 +17,6 @@ Fixed the bug of PF fig position.
 from __future__ import print_function, unicode_literals
 
 import codecs
-import shutil
 
 import numpy as np
 import scipy.io as scio
@@ -25,21 +24,16 @@ import scipy.io as scio
 try:
     import configparser
 except ImportError:
-    # for Python2
     import ConfigParser as configparser
 import matplotlib.pyplot as plt
 import os
-# import time
 
 import re
 from matplotlib.colors import LogNorm
 from lib import measurementMTwinsDensity as measurementMTwinsDensity
-# import measurementMTwinsDensity as measurementMTwinsDensity
 import sys
 
 from lib.bruker3 import convert_raw_to_uxd
-# from bruker3 import convert_raw_to_uxd
-
 
 def _generate_data_file(raw_file):
     """Generate Date Files."""
@@ -113,9 +107,9 @@ def _shiftAngel(intensity, alpha):
     intensity1 = np.zeros(shape=intensity.shape)
     if alpha is not 0:
         intensity1[:(xlength - alpha) % xlength, :] = intensity[
-            (xlength + alpha) % xlength:, :]
+                                                      (xlength + alpha) % xlength:, :]
         intensity1[(xlength - alpha) % xlength:, :] = intensity[
-            :(xlength + alpha) % xlength, :]
+                                                      :(xlength + alpha) % xlength, :]
     else:
         intensity1 = intensity
 
@@ -147,7 +141,7 @@ def _readCONFIG(directory):
     config.read([
         os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
         os.path.join(directory, 'config.ini')
-        ])
+    ])
     return config
 
 
@@ -211,7 +205,7 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
     config = _readCONFIG(directory)
     _setConfig(config, phiCopy, phi_offset, chi, directory, sample)
 
-    plt.figure(figsize=(25, 5), dpi=200)
+    plt.figure(figsize=(25, 5))
     ax2d = plt.subplot(111)
     (xlength, ylength) = values.shape
     phi_offset = int(phi_offset)
@@ -224,12 +218,15 @@ def plot2D(directory, measurement=1, removeCache=1, showImage=0):
     ax2d.axis([0, xlength, 0, ylength])
     plt.title(sample + "\n")
 
-    savename = os.path.join(directory, sample + "_2D.png")
-    plt.savefig(savename, bbox_inches='tight')
-
     # if the image will be shown, default no.
     if showImage:
         plt.show()
+    savename = os.path.join(directory, sample + "_2D.png")
+    plt.savefig(
+        savename,
+        dpi=200,
+        bbox_inches='tight'
+    )
     plt.close()
 
     data = scio.loadmat(int_path)
@@ -296,7 +293,7 @@ def plotPF(directory, showImage=0):
     plt.savefig(
         savename,
         bbox_inches='tight'
-        )
+    )
     # if the image will be shown, default no.
     if showImage:
         plt.show()
@@ -325,6 +322,7 @@ def main(directory):
 
 if __name__ == '__main__':
     import measurementMTwinsDensity
+
     main(os.path.abspath(
         os.path.join(os.path.dirname(sys.argv[0]), 'sample')))
     print('This is a sample display.')
