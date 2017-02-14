@@ -57,7 +57,7 @@ def _generate_data_file(raw_file):
             if lines.startswith("_KHI"):
                 line = lines.split("=")
                 khi = line[1]
-                khi = khi.strip('\n')
+                khi = khi
                 khiData.append(float(khi))
             elif lines.startswith("_STEPTIME"):
                 line = lines.split("=")
@@ -165,7 +165,7 @@ def _readConfigDict(directory):
     square_size = list(map(int, config.get('db', 'square_size').split(',')))
     square_size = np.asarray(square_size)
 
-    # Recongnize the sample automatically
+    # Recognize the sample automatically
     try:
         sample = (re.findall(r'S\d\d\d\d', directory, flags=re.IGNORECASE))
         sample = sample[-1]
