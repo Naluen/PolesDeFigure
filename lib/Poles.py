@@ -1,20 +1,20 @@
 from __future__ import print_function, unicode_literals
 
+import csv
 import logging
 import logging.config
 import logging.handlers
 import os
 import re
 import sys
+
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-
-from scipy.ndimage.filters import maximum_filter
-from scipy.ndimage.morphology import generate_binary_structure
-from scipy.ndimage.filters import gaussian_filter
-
 import numpy as np
 from bruker3 import DatasetDiffractPlusV3
+from matplotlib.colors import LogNorm
+from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import maximum_filter
+from scipy.ndimage.morphology import generate_binary_structure
 
 try:
     import configparser
@@ -23,10 +23,10 @@ except ImportError:
 
 try:
     from Tkinter import Tk
-    from tkFileDialog import askopenfilename
+    from tkFileDialog import askopenfilename, askopenfilenames
 except ImportError:
     from tkinter import Tk
-    from tkinter.filedialog import askopenfilename
+    from tkinter.filedialog import askopenfilename, askopenfilenames
 
     print("Python3 Detected...")
 else:
@@ -36,6 +36,7 @@ else:
 class BeamIntensityFile(object):
     def __init__(self, raw_file):
         self.raw_file = raw_file
+        self.data_dict = None
 
     def get_data(self):
         logging.info("Reading raw file {0}".format(self.raw_file))
@@ -64,6 +65,75 @@ class PolesFigureFile(BeamIntensityFile):
             os.path.join(self.directory, 'config.ini')
         ])
         self.preference_dict = dict(config._sections['db'])
+
+    def beam_intensity(self):
+
+        directory = os.path.dirname(self.raw_file)
+        beam_intensity_float = []
+
+        default_beam_intensity_file_list = [
+            os.path.join(directory, 'beam1mm.raw'),
+            os.path.join(directory, 'beam8mm.raw')]
+        for i in default_beam_intensity_file_list:
+            if os.path.isfile(i):
+                j = BeamIntensityFile(i)
+                beam_intensity_float.append(j.raw_file_reader())
+                logging.debug("Successfully load beam intensity file {0}".format(i))
+
+        if beam_intensity_float is []:
+            root = Tk().withdraw()
+            beam_intensity_file_list = askopenfilenames(
+                title='Choose Intensity File...',
+                initialdir=directory,
+                filetypes=[("Raw files", "*.raw")]
+            )
+            beam_intensity_file_list = root.tk.splitlist(beam_intensity_file_list)
+            if beam_intensity_file_list is not []:
+                for i in beam_intensity_file_list:
+                    j = BeamIntensityFile(i)
+                    beam_intensity_float.append(j.raw_file_reader())
+                    logging.debug("Successfully load beam intensity file {0}".format(i))
+            else:
+                try:
+                    beam_intensity_float.append(
+                        float(self.preference_dict['beam_intensity']
+                              )
+                    )
+                except AttributeError:
+                    print("Intensity Error!")
+                    logging.warning("Failed to load beam intensity, use 16000*8940 instead.")
+                    beam_intensity_float.append(16000 * 8940)
+                else:
+                    logging.debug("Successfully load beam intensity from config")
+
+        beam_intensity_float = np.mean(beam_intensity_float)
+
+        return beam_intensity_float
+
+    @staticmethod
+    def correction(chi, thickness):
+        theta = 14.22  # for GaP
+        omega = 14.22  # for GaP
+        if thickness is not None:
+            thickness = thickness
+        else:
+            thickness = 900. / 10000.
+
+        e_angle = 90. - np.rad2deg(
+            np.arccos(
+                np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(theta))))
+        i_angle = 90. - np.rad2deg(
+            np.arccos(
+                np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(omega))))
+        offset = e_angle - i_angle
+        eta = 1. / 37.6152  # 1/um at 8.05keV (CXRO)
+        p = np.sin(np.deg2rad(e_angle + offset))
+        q = np.sin(np.deg2rad(e_angle - offset))
+        coefficient_b = p / (p + q)
+        coefficient_c = 1. - np.exp(-eta * thickness * (1. / p + 1. / q))
+        coefficient = coefficient_b * (1. / eta) * coefficient_c
+
+        return coefficient
 
     def raw_file_reader(self):
         data_list = self.get_data()
@@ -169,13 +239,16 @@ class PolesFigureFile(BeamIntensityFile):
 
         peak_intensity_matrix = np.asanyarray(peak_intensity_list)
         peak_matrix_points_matrix = np.asanyarray(peak_matrix_points)
+
         return peak_intensity_matrix, peak_matrix_points_matrix
 
-    def plot_2d_image(self, is_show_image=True, is_log_scale=False):
+    def plot_2d_image(self, is_show_image=True):
         """Plot the 2D Image"""
-        data_dict = self.raw_file_reader()
+        if self.data_dict is None:
+            data_dict = self.raw_file_reader()
+        else:
+            data_dict = self.data_dict
 
-        # data_dict['int_data'] = self._shift_angel(data_dict['int_data'], 360 - int(data_dict['phi_data'][-1]))
         data_dict['phi_data'] = np.radians(
             data_dict['phi_data'] +
             [float(self.preference_dict['phi_offset'])]
@@ -193,14 +266,31 @@ class PolesFigureFile(BeamIntensityFile):
                 vmax=int(self.preference_dict['v_max'])
             )
         )
+        ax2d.tick_params(axis='both', which='major', labelsize=16)
         plt.colorbar(im, ax=ax2d, extend='max', fraction=0.046, pad=0.04)
         plt.title(self.preference_dict['sample'] + "\n")
+        save_name = os.path.join(
+            os.path.dirname(self.raw_file),
+            self.preference_dict['sample'] + '_2D.png'
+        )
+        plt.savefig(
+            save_name,
+            dpi=200,
+            bbox_inches='tight')
+        if is_show_image:
+            plt.show(all)
 
+        del data_dict
+
+    def plot_2d_measurement(self, is_show_image=True):
+
+        if self.data_dict is None:
+            data_dict = self.raw_file_reader()
+        else:
+            data_dict = self.data_dict
         plt.figure(figsize=(25, 5))
         ax_2d_calculation = plt.subplot(111)
-        index_list = self.peak_search(data_dict['int_data'])
-        size_list = list(map(int, self.preference_dict['square_size'].split(',')))
-        ax_2d_calculation.imshow(
+        im_2d_calculation = ax_2d_calculation.imshow(
             data_dict['int_data'],
             origin="lower",
             norm=LogNorm(
@@ -208,8 +298,21 @@ class PolesFigureFile(BeamIntensityFile):
                 vmax=int(self.preference_dict['v_max'])
             )
         )
+        ax_2d_calculation.tick_params(axis='both', which='major', labelsize=16)
+        plt.title(self.preference_dict['sample'] + " micro twins measurement.\n")
+        plt.colorbar(
+            im_2d_calculation,
+            ax=ax_2d_calculation,
+            extend='max',
+            fraction=0.046,
+            pad=0.04
+        )
+
+        index_list = self.peak_search(data_dict['int_data'])
+        size_list = list(map(int, self.preference_dict['square_size'].split(',')))
         inner_peak_intensity_matrix, inner_peak_matrix_points_matrix = self.square(
-            data_dict['int_data'], index_list, size_list, ax_2d_calculation)
+            data_dict['int_data'], index_list, size_list, ax_2d_calculation
+        )
         outer_peak_intensity_matrix, outer_peak_matrix_points_matrix = self.square(
             data_dict['int_data'], index_list, [i + 4 for i in size_list], ax_2d_calculation)
 
@@ -220,8 +323,57 @@ class PolesFigureFile(BeamIntensityFile):
         peak_net_intensity_matrix = (
             inner_peak_intensity_matrix -
             background_noise_intensity_float * inner_peak_matrix_points_matrix)
+        for (i, j) in zip(index_list, peak_net_intensity_matrix):
+            ax_2d_calculation.text(
+                i[1],
+                i[0],
+                "MT = {0:.2f}".format(j)
+            )
+        save_name = os.path.join(
+            os.path.dirname(self.raw_file),
+            'mt_density' + self.preference_dict['sample'] + '.png'
+        )
+        plt.savefig(
+            save_name,
+            dpi=200,
+            bbox_inches='tight')
+
         if is_show_image:
             plt.show(all)
+
+        del data_dict
+
+        result = {
+            'peak_intensity_matrix': peak_net_intensity_matrix,
+            'index': index_list
+        }
+
+        return result
+
+    def print_result(self):
+        result = self.plot_2d_measurement(is_show_image=False)
+        beam_intensity_float = self.beam_intensity()
+        peak_intensity_matrix = result['peak_intensity_matrix'] * 10000 / beam_intensity_float
+        mt_table_file = os.path.join(
+            os.path.dirname(self.raw_file),
+            '{0}_result.csv'.format(self.preference_dict['sample'])
+        )
+        try:
+            thickness = float(self.preference_dict['thickness'])
+        except KeyError:
+            thickness = None
+            print("Thickness was not provided, use 900A instead")
+        with open(mt_table_file, 'w') as tableTeX:
+            eta = [self.correction(x[1], thickness) for x in result['index']]
+            coefficient_list = np.asarray([
+                0.939691064,
+                0.426843274 / (eta[1] / eta[2]),
+                0.72278158 / (eta[0] / eta[2]),
+                0.666790711 / (eta[3] / eta[2])
+            ])
+            peak_intensity_matrix = (peak_intensity_matrix * coefficient_list)
+            spam_writer = csv.writer(tableTeX, dialect='excel')
+            spam_writer.writerow(peak_intensity_matrix)
 
 
 if __name__ == '__main__':
@@ -231,11 +383,12 @@ if __name__ == '__main__':
         format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
     )
 
-    Tk().withdraw()
-    raw_file_name = askopenfilename(
-        title='Choose Poles Figure File...',
-        filetypes=[("Raw files", "*.raw")]
-    )
+    # Tk().withdraw()
+    # raw_file_name = askopenfilename(
+    #     title='Choose Poles Figure File...',
+    #     filetypes=[("Raw files", "*.raw")]
+    # )
+    raw_file_name = '/Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw'
     logging.info("File {0} was chosen.".format(raw_file_name))
     sample = PolesFigureFile(raw_file_name)
-    sample.plot_2d_image()
+    sample.print_result()

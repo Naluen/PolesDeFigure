@@ -70,3 +70,367 @@
 39	59	8	28
 2017-02-14 18:59:33,160 [DEBUG] root: x_min	x_max	y_min	y_max:
 109	129	12	32
+2017-02-14 23:20:26,231 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:20:26,240 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:20:26,533 [DEBUG] root: Matrix width is 69
+2017-02-14 23:20:26,534 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:20:26,848 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:20:26,848 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:20:26,851 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:20:26,855 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:20:26,858 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:20:26,861 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:20:26,861 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:20:26,861 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:20:26,864 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:20:26,867 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:20:26,869 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:20:26,872 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:27:34,413 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:27:34,414 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:27:34,669 [DEBUG] root: Matrix width is 69
+2017-02-14 23:27:34,670 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:27:34,952 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:27:34,952 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:27:34,954 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:27:34,956 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:27:34,958 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:27:34,960 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:27:34,960 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:27:34,960 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:27:34,963 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:27:34,965 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:27:34,967 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:27:34,971 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:28:12,216 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:28:12,217 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:28:12,471 [DEBUG] root: Matrix width is 69
+2017-02-14 23:28:12,472 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:28:12,797 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:28:12,797 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:28:12,799 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:28:12,802 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:28:12,804 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:28:12,807 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:28:12,807 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:28:12,807 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:28:12,810 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:28:12,811 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:28:12,813 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:28:12,817 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:30:02,547 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:30:02,548 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:30:02,804 [DEBUG] root: Matrix width is 69
+2017-02-14 23:30:02,805 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:30:03,104 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:30:03,104 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:30:03,106 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:30:03,107 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:30:03,109 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:30:03,111 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:30:03,111 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:30:03,111 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:30:03,113 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:30:03,115 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:30:03,116 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:30:03,120 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:31:35,172 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:31:35,173 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:31:35,445 [DEBUG] root: Matrix width is 69
+2017-02-14 23:31:35,446 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:31:47,627 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:31:47,627 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:31:47,874 [DEBUG] root: Matrix width is 69
+2017-02-14 23:31:47,875 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:31:55,896 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:31:55,897 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:31:56,183 [DEBUG] root: Matrix width is 69
+2017-02-14 23:31:56,184 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:31:59,232 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:31:59,232 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:31:59,234 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:31:59,237 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:31:59,239 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:31:59,241 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:31:59,241 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:31:59,241 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:31:59,243 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:31:59,245 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:31:59,247 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:31:59,248 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:33:46,857 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:33:46,857 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:33:47,121 [DEBUG] root: Matrix width is 69
+2017-02-14 23:33:47,122 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:33:50,198 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:33:50,198 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:33:50,200 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:33:50,202 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:33:50,204 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:33:50,206 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:33:50,206 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:33:50,207 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:33:50,208 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:33:50,210 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:33:50,212 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:33:50,214 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:36:58,254 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:36:58,255 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:36:58,514 [DEBUG] root: Matrix width is 69
+2017-02-14 23:36:58,515 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:37:01,564 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:37:01,564 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:37:01,566 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:37:01,568 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:37:01,570 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:37:01,572 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:37:01,573 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:37:01,573 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:37:01,575 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:37:01,577 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:37:01,579 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:37:01,581 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:37:20,586 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:37:20,587 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:37:20,842 [DEBUG] root: Matrix width is 69
+2017-02-14 23:37:20,843 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:37:23,849 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:37:23,850 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:37:23,852 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:37:23,854 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:37:23,856 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:37:23,858 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:37:23,858 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:37:23,858 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:37:23,860 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:37:23,862 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:37:23,864 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:37:23,866 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:37:37,190 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:37:37,190 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:37:37,447 [DEBUG] root: Matrix width is 69
+2017-02-14 23:37:37,448 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:37:40,507 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:37:40,507 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:37:40,510 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:37:40,512 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:37:40,515 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:37:40,517 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:37:40,518 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:37:40,518 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:37:40,520 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:37:40,522 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:37:40,525 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:37:40,527 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:39:22,637 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:39:22,639 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:39:22,888 [DEBUG] root: Matrix width is 69
+2017-02-14 23:39:22,889 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:39:25,898 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:39:25,898 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:39:25,900 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:39:25,902 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:39:25,904 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:39:25,906 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:39:25,906 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:39:25,906 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:39:25,908 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:39:25,909 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:39:25,911 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:39:25,913 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-14 23:54:38,263 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-14 23:54:38,264 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-14 23:54:38,515 [DEBUG] root: Matrix width is 69
+2017-02-14 23:54:38,516 [DEBUG] root: Add 180 degree offset to phi
+2017-02-14 23:54:41,651 [DEBUG] root: size_list: [16, 16]
+2017-02-14 23:54:41,652 [DEBUG] root: The square size is [16, 16]
+2017-02-14 23:54:41,654 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-14 23:54:41,656 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-14 23:54:41,658 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-14 23:54:41,661 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-14 23:54:41,661 [DEBUG] root: size_list: [20, 20]
+2017-02-14 23:54:41,661 [DEBUG] root: The square size is [20, 20]
+2017-02-14 23:54:41,663 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-14 23:54:41,666 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-14 23:54:41,667 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-14 23:54:41,669 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-15 01:06:39,434 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-15 01:06:39,437 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-15 01:06:39,704 [DEBUG] root: Matrix width is 69
+2017-02-15 01:06:39,929 [DEBUG] root: size_list: [16, 16]
+2017-02-15 01:06:39,929 [DEBUG] root: The square size is [16, 16]
+2017-02-15 01:06:39,931 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-15 01:06:39,933 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-15 01:06:39,935 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-15 01:06:39,937 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-15 01:06:39,937 [DEBUG] root: size_list: [20, 20]
+2017-02-15 01:06:39,938 [DEBUG] root: The square size is [20, 20]
+2017-02-15 01:06:39,939 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-15 01:06:39,941 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-15 01:06:39,943 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-15 01:06:39,945 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-15 01:07:07,678 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-15 01:07:07,679 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-15 01:07:07,929 [DEBUG] root: Matrix width is 69
+2017-02-15 01:07:08,156 [DEBUG] root: size_list: [16, 16]
+2017-02-15 01:07:08,156 [DEBUG] root: The square size is [16, 16]
+2017-02-15 01:07:08,158 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-15 01:07:08,161 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-15 01:07:08,163 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-15 01:07:08,166 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-15 01:07:08,166 [DEBUG] root: size_list: [20, 20]
+2017-02-15 01:07:08,166 [DEBUG] root: The square size is [20, 20]
+2017-02-15 01:07:08,168 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-15 01:07:08,169 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-15 01:07:08,171 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-15 01:07:08,173 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-15 01:07:23,010 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-15 01:07:23,011 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-15 01:07:23,279 [DEBUG] root: Matrix width is 69
+2017-02-15 01:07:23,500 [DEBUG] root: size_list: [16, 16]
+2017-02-15 01:07:23,500 [DEBUG] root: The square size is [16, 16]
+2017-02-15 01:07:23,502 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-15 01:07:23,505 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-15 01:07:23,508 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-15 01:07:23,511 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-15 01:07:23,512 [DEBUG] root: size_list: [20, 20]
+2017-02-15 01:07:23,512 [DEBUG] root: The square size is [20, 20]
+2017-02-15 01:07:23,514 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-15 01:07:23,517 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-15 01:07:23,520 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-15 01:07:23,522 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
+2017-02-15 01:09:51,197 [INFO] root: File /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw was chosen.
+2017-02-15 01:09:51,198 [INFO] root: Reading raw file /Users/zhouang/Desktop/PolesDeFigure/lib/sample/PF.raw
+2017-02-15 01:09:51,466 [DEBUG] root: Matrix width is 69
+2017-02-15 01:09:51,688 [DEBUG] root: size_list: [16, 16]
+2017-02-15 01:09:51,688 [DEBUG] root: The square size is [16, 16]
+2017-02-15 01:09:51,690 [DEBUG] root: x_min	x_max	y_min	y_max:
+293	309	2	18
+2017-02-15 01:09:51,692 [DEBUG] root: x_min	x_max	y_min	y_max:
+182	198	9	25
+2017-02-15 01:09:51,694 [DEBUG] root: x_min	x_max	y_min	y_max:
+41	57	10	26
+2017-02-15 01:09:51,696 [DEBUG] root: x_min	x_max	y_min	y_max:
+111	127	14	30
+2017-02-15 01:09:51,696 [DEBUG] root: size_list: [20, 20]
+2017-02-15 01:09:51,696 [DEBUG] root: The square size is [20, 20]
+2017-02-15 01:09:51,698 [DEBUG] root: x_min	x_max	y_min	y_max:
+291	311	0	20
+2017-02-15 01:09:51,700 [DEBUG] root: x_min	x_max	y_min	y_max:
+180	200	7	27
+2017-02-15 01:09:51,702 [DEBUG] root: x_min	x_max	y_min	y_max:
+39	59	8	28
+2017-02-15 01:09:51,705 [DEBUG] root: x_min	x_max	y_min	y_max:
+109	129	12	32
