@@ -47,7 +47,9 @@ class BeamIntensityFile(object):
 
     def raw_file_reader(self):
         data_list = self.get_data()
-        int_data_matrix = [float(i.split()[1]) for i in data_list if re.match('\d', i)]
+        int_data_matrix = [
+            float(i.split()[1]) for i in data_list if re.match('\d', i)
+            ]
         max_intensity = max(int_data_matrix) * 8940
 
         return max_intensity
@@ -61,7 +63,7 @@ class PolesFigureFile(BeamIntensityFile):
         config.read([
             os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
             os.path.join(os.path.dirname(raw_file), 'config.ini')
-        ])
+            ])
         self.preference_dict = dict(config._sections['db'])
         self.guess_sample_name()
 
@@ -77,7 +79,9 @@ class PolesFigureFile(BeamIntensityFile):
             if os.path.isfile(i):
                 j = BeamIntensityFile(i)
                 beam_intensity_float.append(j.raw_file_reader())
-                logging.debug("Successfully load beam intensity file {0}".format(i))
+                logging.debug(
+                    "Successfully load beam intensity file {0}".format(i)
+                    )
 
         if beam_intensity_float is []:
             root = Tk().withdraw()
@@ -86,24 +90,32 @@ class PolesFigureFile(BeamIntensityFile):
                 initialdir=directory,
                 filetypes=[("Raw files", "*.raw")]
             )
-            beam_intensity_file_list = root.tk.splitlist(beam_intensity_file_list)
+            beam_intensity_file_list = root.tk.splitlist(
+                beam_intensity_file_list
+                )
             if beam_intensity_file_list is not []:
                 for i in beam_intensity_file_list:
                     j = BeamIntensityFile(i)
                     beam_intensity_float.append(j.raw_file_reader())
-                    logging.debug("Successfully load beam intensity file {0}".format(i))
+                    logging.debug(
+                        "Successfully load beam intensity file {0}".format(i)
+                        )
             else:
                 try:
                     beam_intensity_float.append(
-                        float(self.preference_dict['beam_intensity']
-                              )
-                    )
+                        float(self.preference_dict['beam_intensity'])
+                        )
                 except AttributeError:
                     print("Intensity Error!")
-                    logging.warning("Failed to load beam intensity, use 16000*8940 instead.")
+                    logging.warning(
+                        "Failed to load beam intensity, use "
+                        "16000*8940 instead."
+                        )
                     beam_intensity_float.append(16000 * 8940)
                 else:
-                    logging.debug("Successfully load beam intensity from config")
+                    logging.debug(
+                        "Successfully load beam intensity from config"
+                        )
 
         beam_intensity_float = np.mean(beam_intensity_float)
 
@@ -131,7 +143,10 @@ class PolesFigureFile(BeamIntensityFile):
         coefficient_c = 1. - np.exp(-eta * thickness * (1. / p + 1. / q))
         coefficient = coefficient_b * (1. / eta) * coefficient_c
         logging.debug(
-            "eta:{0}, thickness:{1}, p:{2}, q:{3}, c_c:{4}".format(eta, thickness, p, q, coefficient_c))
+            "eta:{0}, thickness:{1}, p:{2}, q:{3}, c_c:{4}".format(
+                eta, thickness, p, q, coefficient_c
+                )
+            )
 
         return coefficient
 
@@ -153,17 +168,28 @@ class PolesFigureFile(BeamIntensityFile):
     def raw_file_reader(self):
         data_list = self.get_data()
         khi_data_matrix = np.asarray(
-            [float(i.split("=")[1].strip('\n')) for i in data_list if i.startswith("_KHI")]
+            [
+                float(i.split("=")[1].strip('\n')) for i in data_list
+                if i.startswith("_KHI")
+                ]
         )
-        step_time_set = {float(i.split("=")[1].strip('\n')) for i in data_list if i.startswith("_STEPTIME")}
+        step_time_set = {
+            float(i.split("=")[1].strip('\n')) for i in data_list
+            if i.startswith("_STEPTIME")
+            }
         scan_data_matrix = np.asarray(
-            [list(map(float, i.split())) for i in data_list if (re.match('\d', i) or i.startswith("-"))]
+            [
+                list(map(float, i.split())) for i in data_list
+                if (re.match('\d', i) or i.startswith("-"))
+                ]
         )
         matrix_width_int = len(khi_data_matrix)
         logging.debug("Matrix width is {0}".format(matrix_width_int))
         int_data_matrix = scan_data_matrix[:, 1] / next(iter(step_time_set))
         phi_data_matrix = scan_data_matrix[:, 0]
-        phi_data_matrix = phi_data_matrix[0:int(len(int_data_matrix) / matrix_width_int)]
+        phi_data_matrix = phi_data_matrix[
+            0:int(len(int_data_matrix) / matrix_width_int)
+            ]
         int_data_matrix = np.reshape(
             int_data_matrix,
             (matrix_width_int, int(len(int_data_matrix) / matrix_width_int)))
@@ -181,8 +207,8 @@ class PolesFigureFile(BeamIntensityFile):
     def _shift_angel(intensity_matrix, alpha):
         """Shift the intensity_matrix fig.
 
-        shift the intensity_matrix fig  towards left for alpha degree and add the part
-        which exceeded to the right.
+        shift the intensity_matrix fig  towards left for alpha degree and
+        add the part which exceeded to the right.
 
         Args:
         intensity_matrix: input array.
@@ -194,10 +220,12 @@ class PolesFigureFile(BeamIntensityFile):
         _, x_length = intensity_matrix.shape
         intensity_new_matrix = np.zeros(shape=intensity_matrix.shape)
         if alpha is not 0:
-            intensity_new_matrix[:(x_length - alpha) % x_length, :] = intensity_matrix[
-                                                                      (x_length + alpha) % x_length:, :]
-            intensity_new_matrix[(x_length - alpha) % x_length:, :] = intensity_matrix[
-                                                                      :(x_length + alpha) % x_length, :]
+            intensity_new_matrix[
+                :(x_length - alpha) % x_length, :
+                ] = intensity_matrix[(x_length + alpha) % x_length:, :]
+            intensity_new_matrix[
+                (x_length - alpha) % x_length:, :
+                ] = intensity_matrix[:(x_length + alpha) % x_length, :]
         else:
             intensity_new_matrix = intensity_matrix
 
@@ -214,32 +242,46 @@ class PolesFigureFile(BeamIntensityFile):
             sorted_index_list = [None] * len(index_list)
             for l in range(len(index_list)):
                 sorted_index_list[l - shifted_index_int] = khi_sorted_list[l]
-            logging.debug("index list after sort:{0}".format(sorted_index_list))
+            logging.debug(
+                "index list after sort:{0}".format(sorted_index_list)
+                )
             return sorted_index_list
 
         neighborhood = generate_binary_structure(2, 1)
         for i in range(3):
             int_data = gaussian_filter(int_data, 4, mode='nearest')
-        local_max = maximum_filter(int_data, footprint=neighborhood) == int_data
+        local_max = (
+            maximum_filter(int_data, footprint=neighborhood) == int_data
+            )
         index = np.asarray(np.where(local_max))
         x_threshold = [0, 70]
         y_threshold = [0, 360]
-        filtered_index_list = [[i, j] for (i, j) in zip(index[0, :], index[1, :])]
-        peak_intensity_matrix = [int_data[i[0], i[1]] for i in filtered_index_list]
+        filtered_index_list = [
+            [i, j] for (i, j) in zip(index[0, :], index[1, :])
+            ]
+        peak_intensity_matrix = [
+            int_data[i[0], i[1]] for i in filtered_index_list
+            ]
         peak_intensity_matrix_copy = peak_intensity_matrix.copy()
         new_filtered_index_list = []
         for i in range(8):
-            index = peak_intensity_matrix.index(max(peak_intensity_matrix_copy))
+            index = peak_intensity_matrix.index(
+                max(peak_intensity_matrix_copy)
+                )
             new_filtered_index_list.append(
                 filtered_index_list[index]
             )
             peak_intensity_matrix_copy.pop(
-                peak_intensity_matrix_copy.index(max(peak_intensity_matrix_copy))
+                peak_intensity_matrix_copy.index(
+                    max(peak_intensity_matrix_copy)
+                    )
             )
         filtered_index_list = new_filtered_index_list
         chi_threshold = 40
         while len(filtered_index_list) > 4:
-            filtered_index_list = [i for i in filtered_index_list if i[0] < chi_threshold]
+            filtered_index_list = [
+                i for i in filtered_index_list if i[0] < chi_threshold
+                ]
             chi_threshold -= 1
         filtered_index_list = sort_index_list(filtered_index_list)
         return filtered_index_list
@@ -260,7 +302,8 @@ class PolesFigureFile(BeamIntensityFile):
             y = np.asarray([y_min, y_min, y_max, y_max, y_min])
             axes.plot(x, y, linewidth=0.5)
 
-            intensity_result_matrix = intensity_matrix[y_min:y_max, x_min:x_max]
+            intensity_result_matrix = intensity_matrix[
+                y_min:y_max, x_min:x_max]
             peak_intensity_list.append(np.sum(intensity_result_matrix))
             b, p = intensity_result_matrix.shape
             peak_matrix_points.append(b * p)
@@ -306,7 +349,11 @@ class PolesFigureFile(BeamIntensityFile):
             data_dict['phi_data'] +
             [float(self.preference_dict['phi_offset'])]
         )
-        logging.debug("Add {0} degree offset to phi".format(self.preference_dict['phi_offset']))
+        logging.debug(
+            "Add {0} degree offset to phi".format(
+                self.preference_dict['phi_offset']
+                )
+            )
         r, theta = np.meshgrid(data_dict['khi_data'], phi_data_matrix)
 
         fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
@@ -345,7 +392,8 @@ class PolesFigureFile(BeamIntensityFile):
             os.path.dirname(self.raw_file),
             sample_name_str + "_PF.png"
         )
-        logging.info("Saving polar figure file to {0}".format(figure_file_name))
+        logging.info(
+            "Saving polar figure file to {0}".format(figure_file_name))
         plt.savefig(
             figure_file_name,
             dpi=200,
@@ -354,7 +402,7 @@ class PolesFigureFile(BeamIntensityFile):
         del data_dict
         logging.info(
             "Polar plot Finished!\n"
-            "--------------------------------------------------------------------------------------------------------"
+            "-----------------------------------------------------------------"
         )
 
     def plot_2d_image(self, is_show_image=False):
@@ -402,7 +450,7 @@ class PolesFigureFile(BeamIntensityFile):
         del data_dict
         logging.info(
             "2D plot Finished!\n"
-            "--------------------------------------------------------------------------------------------------------"
+            "-----------------------------------------------------------------"
         )
 
     def plot_2d_measurement(self, is_show_image=False):
@@ -425,7 +473,8 @@ class PolesFigureFile(BeamIntensityFile):
             )
         )
         ax_2d_calculation.tick_params(axis='both', which='major', labelsize=16)
-        plt.title(self.preference_dict['sample'] + " micro twins measurement.\n")
+        plt.title(
+            self.preference_dict['sample'] + " micro twins measurement.\n")
         plt.colorbar(
             im_2d_calculation,
             ax=ax_2d_calculation,
@@ -435,12 +484,22 @@ class PolesFigureFile(BeamIntensityFile):
         )
 
         index_list = self.peak_search(data_dict['int_data'])
-        size_list = list(map(int, self.preference_dict['square_size'].split(',')))
-        inner_peak_intensity_matrix, inner_peak_matrix_points_matrix = self.square(
-            data_dict['int_data'], index_list, size_list, ax_2d_calculation
+        size_list = list(
+            map(int, self.preference_dict['square_size'].split(',')))
+        (inner_peak_intensity_matrix,
+         inner_peak_matrix_points_matrix) = self.square(
+            data_dict['int_data'],
+            index_list,
+            size_list,
+            ax_2d_calculation
         )
-        outer_peak_intensity_matrix, outer_peak_matrix_points_matrix = self.square(
-            data_dict['int_data'], index_list, [i + 4 for i in size_list], ax_2d_calculation)
+        (outer_peak_intensity_matrix,
+         outer_peak_matrix_points_matrix) = self.square(
+            data_dict['int_data'],
+            index_list,
+            [i + 4 for i in size_list],
+            ax_2d_calculation
+            )
 
         background_noise_intensity_float = np.average(
             (outer_peak_intensity_matrix - inner_peak_intensity_matrix) /
@@ -451,7 +510,8 @@ class PolesFigureFile(BeamIntensityFile):
             background_noise_intensity_float * inner_peak_matrix_points_matrix)
 
         mt_name_list = ['MT-A', 'MT-D', 'MT-C', 'MT-B']
-        for (i, j, k) in zip(index_list, peak_net_intensity_matrix, mt_name_list):
+        for (i, j, k) in zip(
+                index_list, peak_net_intensity_matrix, mt_name_list):
             ax_2d_calculation.text(
                 i[1],
                 i[0],
@@ -461,7 +521,11 @@ class PolesFigureFile(BeamIntensityFile):
             os.path.dirname(self.raw_file),
             'mt_density' + self.preference_dict['sample'] + '.png'
         )
-        logging.info("Saving 2D measurement figure file to {0}".format(figure_file_name))
+        logging.info(
+            "Saving 2D measurement figure file to {0}".format(
+                figure_file_name
+                )
+            )
         plt.savefig(
             figure_file_name,
             dpi=200,
@@ -478,17 +542,18 @@ class PolesFigureFile(BeamIntensityFile):
         }
         logging.info(
             "2D measurement Finished!\n"
-            "--------------------------------------------------------------------------------------------------------\n"
+            "-----------------------------------------------------------------"
         )
 
         return result
 
     def print_result_csv(self):
-        logging.info("Micro Twins analysis starts.\n -------------------------------------------------------")
+        logging.info("Micro Twins analysis starts.\n ------------------------")
         self.plot_2d_image()
         result = self.plot_2d_measurement(is_show_image=False)
         beam_intensity_float = self.beam_intensity()
-        peak_intensity_matrix = result['peak_intensity_matrix'] * 10000 / beam_intensity_float
+        peak_intensity_matrix = (
+            result['peak_intensity_matrix'] * 10000 / beam_intensity_float)
         mt_table_file = os.path.join(
             os.path.dirname(self.raw_file),
             '{0}_result.csv'.format(self.preference_dict['sample'])
@@ -512,13 +577,14 @@ class PolesFigureFile(BeamIntensityFile):
             spam_writer.writerow(peak_intensity_matrix)
         logging.info(
             "Calculation Finished!\n"
-            "--------------------------------------------------------------------------------------------------------"
+            "-----------------------------------------------------------------"
         )
 
 
 if __name__ == '__main__':
     logging.basicConfig(
-        filename=os.path.join(os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
+        filename=os.path.join(
+            os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
     )
@@ -535,6 +601,5 @@ if __name__ == '__main__':
     sample.save_config()
     logging.info(
         "Finished!\n"
-        "------------------------------------------------------------------------------------------------------------"
+        "--------------------------------------------------------------------"
     )
-
