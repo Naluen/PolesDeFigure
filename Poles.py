@@ -32,6 +32,64 @@ else:
     print("Python2 Detected...")
 
 
+class Square(object):
+    def __init__(self, central_point_list, size_list, **param):
+        self.central_point_list = central_point_list
+        self.size_list = size_list
+        self.param = param
+
+        if ('limitation' in param) and param['limitation']:
+            (y_limit, x_limit) = param['limitation']
+        else:
+            x_limit = 500000
+            y_limit = 500000
+
+        x_min = max(0, int(
+            np.floor(self.central_point_list[1] - self.size_list[1] / 2.0)))
+        x_max = min(
+            int(np.floor(self.central_point_list[1] + self.size_list[1] / 2.0)),
+            x_limit)
+        y_min = max(0, int(
+            np.floor(self.central_point_list[0] - self.size_list[0] / 2.0)))
+        y_max = min(
+            int(np.floor(self.central_point_list[0] + self.size_list[0] / 2.0)),
+            y_limit)
+        self.x_list = np.asarray([x_min, x_max, x_max, x_min, x_min])
+        self.y_list = np.asarray([y_min, y_min, y_max, y_max, y_min])
+
+        self.figure_handle = None
+        self.axes = None
+
+    def draw(self, axes, **param):
+        self.__init__(self.central_point_list, self.size_list, **self.param)
+        self.figure_handle, = axes.plot(self.x_list, self.y_list, linewidth=0.5)
+        self.axes = axes
+
+    def sum(self, intensity_matrix):
+        intensity_result_matrix = intensity_matrix[
+                                  self.y_list[0]:self.y_list[2],
+                                  self.x_list[0]:self.x_list[1]
+                                  ]
+        peak_intensity_int = np.sum(intensity_result_matrix)
+        b, p = intensity_result_matrix.shape
+        peak_matrix_points = b * p
+
+        return peak_intensity_int, peak_matrix_points
+
+    def remove(self):
+        if self.figure_handle is not None and self.axes is not None:
+            self.axes.lines.remove(self.figure_handle)
+
+    def is_contained(self, point_list):
+        if (
+                            self.x_list[0] < point_list[0] < self.x_list[1] and
+                            self.y_list[0] < point_list[1] < self.y_list[2]
+        ):
+            return True
+        else:
+            return False
+
+
 class BeamIntensityFile(object):
     def __init__(self, raw_file):
         self.raw_file = raw_file
@@ -174,7 +232,7 @@ class PolesFigureFile(BeamIntensityFile):
                     flags=re.IGNORECASE
                 )
             )
-        except:
+        except FileNotFoundError:
             print("Error, no sample name.")
         else:
             if sample_name is not []:
@@ -279,13 +337,20 @@ class PolesFigureFile(BeamIntensityFile):
             i for i in filtered_index_list if i[0] < chi_threshold
             ]
 
-        peak_intensity_matrix, points = cls.square(
+        peak_intensity_matrix, points, _ = cls.square(
             int_data, filtered_index_list, [10, 10]
         )
-        peak_intensity_matrix_bigger, points_more = cls.square(
+        peak_intensity_matrix_bigger, points_more, _ = cls.square(
             int_data, filtered_index_list, [20, 20]
         )
-        peak_intensity_matrix = peak_intensity_matrix - (peak_intensity_matrix_bigger - peak_intensity_matrix)/(points_more - points)*points
+        peak_intensity_matrix = (
+            peak_intensity_matrix -
+            (
+                (peak_intensity_matrix_bigger - peak_intensity_matrix) /
+                (points_more - points) *
+                points
+            )
+        )
         peak_intensity_matrix = list(peak_intensity_matrix)
         peak_intensity_matrix_copy = peak_intensity_matrix.copy()
         new_filtered_index_list = []
@@ -307,32 +372,39 @@ class PolesFigureFile(BeamIntensityFile):
         return filtered_index_list
 
     @staticmethod
-    def square(intensity_matrix, index_list, size_list, **axes):
+    def square(intensity_matrix, index_list, size_list, **param):
         logging.debug("size_list: {0}".format(size_list))
         peak_intensity_list = []
         peak_matrix_points = []
+        square_instances = []
         logging.debug("The square size is {0}".format(size_list))
-        (y_limit, x_limit) = intensity_matrix.shape
-        for i in index_list:
-            x_min = max(0, int(np.floor(i[1] - size_list[1] / 2.0)))
-            x_max = min(int(np.floor(i[1] + size_list[1] / 2.0)), x_limit)
-            y_min = max(0, int(np.floor(i[0] - size_list[0] / 2.0)))
-            y_max = min(int(np.floor(i[0] + size_list[0] / 2.0)), y_limit)
-            x = np.asarray([x_min, x_max, x_max, x_min, x_min])
-            y = np.asarray([y_min, y_min, y_max, y_max, y_min])
-            if ('axes' in axes) and axes['axes']:
-                axes['axes'].plot(x, y, linewidth=0.5)
 
-            intensity_result_matrix = intensity_matrix[
-                                      y_min:y_max, x_min:x_max]
-            peak_intensity_list.append(np.sum(intensity_result_matrix))
-            b, p = intensity_result_matrix.shape
-            peak_matrix_points.append(b * p)
+        for i in index_list:
+            square_instance = Square(
+                i, size_list, limitation=intensity_matrix.shape
+            )
+            square_instances.append(square_instance)
+
+        for i in square_instances:
+            if ('axes' in param) and param['axes']:
+                i.draw(param['axes'])
+            else:
+                pass
+
+            peak_intensity_int, peak_matrix_point_int = i.sum(
+                intensity_matrix
+            )
+            peak_intensity_list.append(peak_intensity_int)
+            peak_matrix_points.append(peak_matrix_point_int)
 
         peak_intensity_matrix = np.asanyarray(peak_intensity_list)
         peak_matrix_points_matrix = np.asanyarray(peak_matrix_points)
 
-        return peak_intensity_matrix, peak_matrix_points_matrix
+        return (
+            peak_intensity_matrix,
+            peak_matrix_points_matrix,
+            square_instances
+        )
 
     def save_config(self):
         config = configparser.ConfigParser()
@@ -426,7 +498,7 @@ class PolesFigureFile(BeamIntensityFile):
             "-----------------------------------------------------------------"
         )
 
-    def plot_2d_image(self, is_show_image=False):
+    def plot_2d_image(self, is_show_image=False, **param):
         """Plot the 2D Image.
         Args:
             is_show_image: Boolean value control if show the image
@@ -443,8 +515,12 @@ class PolesFigureFile(BeamIntensityFile):
 
         sample_name_str = self.preference_dict['sample']
 
-        plt.figure(figsize=(25, 5))
-        ax2d = plt.subplot(111)
+        if "outer_space_axes" in param and param['outer_space_axes']:
+            ax2d = param['outer_space_axes']
+            logging.info("Use outer space axes instead.")
+        else:
+            plt.figure(figsize=(25, 5))
+            ax2d = plt.subplot(111)
         im = ax2d.imshow(
             data_dict['int_data'],
             origin="lower",
@@ -454,7 +530,9 @@ class PolesFigureFile(BeamIntensityFile):
             )
         )
         ax2d.tick_params(axis='both', which='major', labelsize=16)
-        plt.colorbar(im, ax=ax2d, extend='max', fraction=0.046, pad=0.04)
+        plt.colorbar(
+            im, ax=ax2d, extend='max', fraction=0.03, pad=0.04, shrink=0.6
+        )
         plt.title(sample_name_str + "\n")
         figure_file_name = os.path.join(
             os.path.dirname(self.raw_file),
@@ -475,7 +553,8 @@ class PolesFigureFile(BeamIntensityFile):
             "-----------------------------------------------------------------"
         )
 
-    def plot_2d_measurement(self, is_show_image=False, is_save_image=1):
+    def plot_2d_measurement(
+            self, is_show_image=False, is_save_image=1, **param):
         """Plot 2d measurement image.
 
         :param is_show_image: boolean value control if show the image
@@ -492,44 +571,59 @@ class PolesFigureFile(BeamIntensityFile):
         else:
             data_dict = self.data_dict
 
-        plt.figure(figsize=(25, 5))
-        ax_2d_calculation = plt.subplot(111)
-        im_2d_calculation = ax_2d_calculation.imshow(
-            data_dict['int_data'],
-            origin="lower",
-            norm=LogNorm(
-                vmin=int(self.preference_dict['v_min']),
-                vmax=int(self.preference_dict['v_max'])
+        if "outer_space_axes" in param and param['outer_space_axes']:
+            ax_2d_calculation = param['outer_space_axes']
+            logging.info("Use outer space axes instead.")
+        else:
+            plt.figure(figsize=(25, 5))
+            ax_2d_calculation = plt.subplot(111)
+            im_2d_calculation = ax_2d_calculation.imshow(
+                data_dict['int_data'],
+                origin="lower",
+                norm=LogNorm(
+                    vmin=int(self.preference_dict['v_min']),
+                    vmax=int(self.preference_dict['v_max'])
+                )
             )
-        )
-        ax_2d_calculation.tick_params(axis='both', which='major', labelsize=16)
-        plt.title(
-            self.preference_dict['sample'] + " micro twins measurement.\n")
-        plt.colorbar(
-            im_2d_calculation,
-            ax=ax_2d_calculation,
-            extend='max',
-            fraction=0.046,
-            pad=0.04
-        )
+            ax_2d_calculation.tick_params(axis='both', which='major',
+                                          labelsize=16)
+            plt.title(
+                self.preference_dict['sample'] + " micro twins measurement.\n")
+            plt.colorbar(
+                im_2d_calculation,
+                ax=ax_2d_calculation,
+                extend='max',
+                fraction=0.046,
+                pad=0.04
+            )
 
-        index_list = self.peak_search(data_dict['int_data'])
+        if "outer_index_list" in param and param['outer_index_list']:
+            index_list = param['outer_index_list']
+        else:
+            index_list = self.peak_search(data_dict['int_data'])
+            print(index_list)
         size_list = list(
             map(int, self.preference_dict['square_size'].split(',')))
+
         (inner_peak_intensity_matrix,
-         inner_peak_matrix_points_matrix) = self.square(
+         inner_peak_matrix_points_matrix,
+         inner_square_instances) = self.square(
             data_dict['int_data'],
             index_list,
             size_list,
             axes=ax_2d_calculation
         )
+
         (outer_peak_intensity_matrix,
-         outer_peak_matrix_points_matrix) = self.square(
+         outer_peak_matrix_points_matrix,
+         outer_square_instances) = self.square(
             data_dict['int_data'],
             index_list,
             [i + 4 for i in size_list],
             axes=ax_2d_calculation
         )
+
+        square_instances = inner_square_instances + outer_square_instances
 
         background_noise_intensity_float = np.average(
             (outer_peak_intensity_matrix - inner_peak_intensity_matrix) /
@@ -539,14 +633,14 @@ class PolesFigureFile(BeamIntensityFile):
             inner_peak_intensity_matrix -
             background_noise_intensity_float * inner_peak_matrix_points_matrix)
 
-        mt_name_list = ['MT-A', 'MT-D', 'MT-C', 'MT-B']
-        for (i, j, k) in zip(
-                index_list, peak_net_intensity_matrix, mt_name_list):
-            ax_2d_calculation.text(
-                i[1],
-                i[0],
-                "{1} = {0:.2f}".format(j, k)
-            )
+        # mt_name_list = ['MT-A', 'MT-D', 'MT-C', 'MT-B']
+        # for (i, j, k) in zip(
+        #         index_list, peak_net_intensity_matrix, mt_name_list):
+        #     ax_2d_calculation.text(
+        #         i[1],
+        #         i[0],
+        #         "{1} = {0:.2f}".format(j, k)
+        #     )
         figure_file_name = os.path.join(
             os.path.dirname(self.raw_file),
             'mt_density_' + self.preference_dict['sample'] + '.png'
@@ -573,7 +667,8 @@ class PolesFigureFile(BeamIntensityFile):
 
         result = {
             'peak_intensity_matrix': peak_net_intensity_matrix,
-            'index': index_list
+            'index': index_list,
+            'square_instances': square_instances
         }
         logging.info(
             "2D measurement Finished!\n"
