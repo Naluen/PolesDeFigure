@@ -126,9 +126,9 @@ class PolesFigureFile(BeamIntensityFile):
         self.guess_sample_name()
 
     def beam_intensity(self):
-
+        logging.info("Starts calculation beam intensity.")
         directory = os.path.dirname(self.raw_file)
-        beam_intensity_float = []
+        beam_intensity_float_list = []
 
         default_beam_intensity_file_list = [
             os.path.join(directory, 'beam1mm.raw'),
@@ -136,14 +136,15 @@ class PolesFigureFile(BeamIntensityFile):
         for i in default_beam_intensity_file_list:
             if os.path.isfile(i):
                 j = BeamIntensityFile(i)
-                beam_intensity_float.append(j.raw_file_reader())
-                logging.debug(
+                beam_intensity_float_list.append(j.raw_file_reader())
+                logging.info(
                     "Successfully load beam intensity file {0}".format(i)
                 )
 
-        if beam_intensity_float is []:
+        if beam_intensity_float_list == []:
+            logging.info("Could not found default beam intensity files")
             try:
-                beam_intensity_float.append(
+                beam_intensity_float_list.append(
                     float(self.preference_dict['beam_intensity'])
                 )
             except AttributeError:
@@ -173,7 +174,7 @@ class PolesFigureFile(BeamIntensityFile):
                     if beam_intensity_file_list is not []:
                         for i in beam_intensity_file_list:
                             j = BeamIntensityFile(i)
-                            beam_intensity_float.append(j.raw_file_reader())
+                            beam_intensity_float_list.append(j.raw_file_reader())
                             logging.debug(
                                 ("Successfully load beam"
                                  " intensity file {0}").format(i)
@@ -184,15 +185,15 @@ class PolesFigureFile(BeamIntensityFile):
                             "Failed to load beam intensity, use "
                             "16000*8940 instead."
                         )
-                        beam_intensity_float.append(16000 * 8940)
+                        beam_intensity_float_list.append(16000 * 8940)
             else:
                 logging.debug(
                     "Successfully load beam intensity from config"
                 )
 
-        beam_intensity_float = np.mean(beam_intensity_float)
+        beam_intensity_float_list = np.mean(beam_intensity_float_list)
 
-        return beam_intensity_float
+        return beam_intensity_float_list
 
     @staticmethod
     def correction(chi, thickness):
@@ -601,7 +602,7 @@ class PolesFigureFile(BeamIntensityFile):
             index_list = param['outer_index_list']
         else:
             index_list = self.peak_search(data_dict['int_data'])
-            print(index_list)
+            logging.debug(index_list)
         size_list = list(
             map(int, self.preference_dict['square_size'].split(',')))
 
@@ -680,12 +681,14 @@ class PolesFigureFile(BeamIntensityFile):
     def mt_intensity_to_fraction(self, result):
         index_list = result['index']
         peak_net_intensity_matrix = result['peak_intensity_matrix']
+        logging.info("Peak intensity is {0}".format(peak_net_intensity_matrix))
         try:
             thickness = float(self.preference_dict['thickness'])
         except KeyError:
             thickness = None
             logging.warning("Thickness was not provided, use 90nm instead")
         eta = [self.correction(x[0], thickness) for x in index_list]
+        logging.info("Intensity correction index eta is {0}".format(eta))
         coefficient_list = np.asarray([
             0.939691064,
             0.666790711 / (eta[1] / eta[0]),
@@ -742,9 +745,9 @@ if __name__ == '__main__':
     logging.info("File {0} was chosen.".format(raw_file_name))
     sample = PolesFigureFile(raw_file_name)
     # sample.plot_polar_image()
-    # sample.print_result_csv()
-    # sample.save_config()
-    sample.plot_2d_measurement(is_show_image=True)
+    sample.print_result_csv()
+    sample.save_config()
+    # sample.plot_2d_measurement(is_show_image=True)
     logging.info(
         "Finished!\n"
         "--------------------------------------------------------------------"
