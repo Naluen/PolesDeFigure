@@ -7,14 +7,16 @@ import logging.handlers
 import os
 import re
 import sys
+from functools import wraps
 
 import matplotlib.pyplot as plt
 import numpy as np
-from bruker3 import DatasetDiffractPlusV3
 from matplotlib.colors import LogNorm
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.filters import maximum_filter
 from scipy.ndimage.morphology import generate_binary_structure
+
+from bruker3 import DatasetDiffractPlusV3
 
 try:
     import configparser
@@ -58,12 +60,10 @@ class Square(object):
         self.y_list = np.asarray([y_min, y_min, y_max, y_max, y_min])
 
         self.figure_handle = None
-        self.axes = None
 
-    def draw(self, axes, **param):
+    def draw(self, **param):
         self.__init__(self.central_point_list, self.size_list, **self.param)
-        self.figure_handle, = axes.plot(self.x_list, self.y_list, linewidth=0.5)
-        self.axes = axes
+        self.figure_handle, = plt.plot(self.x_list, self.y_list, linewidth=0.5)
 
     def sum(self, intensity_matrix):
         intensity_result_matrix = intensity_matrix[
@@ -77,8 +77,9 @@ class Square(object):
         return peak_intensity_int, peak_matrix_points
 
     def remove(self):
-        if self.figure_handle is not None and self.axes is not None:
-            self.axes.lines.remove(self.figure_handle)
+        axes = plt.gca()
+        if self.figure_handle is not None and axes is not None:
+            axes.lines.remove(self.figure_handle)
 
     def is_contained(self, point_list):
         if (
@@ -113,9 +114,9 @@ class BeamIntensityFile(object):
         return max_intensity
 
 
-class PolesFigureFile(BeamIntensityFile):
+class TwoDFigure(BeamIntensityFile):
     def __init__(self, raw_file):
-        super(PolesFigureFile, self).__init__(raw_file)
+        super(TwoDFigure, self).__init__(raw_file)
 
         config = configparser.ConfigParser()
         config.read([
@@ -124,6 +125,7 @@ class PolesFigureFile(BeamIntensityFile):
         ])
         self.preference_dict = dict(config._sections['db'])
         self.guess_sample_name()
+        self.label = '2D'
 
     def beam_intensity(self):
         logging.info("Starts calculation beam intensity.")
@@ -174,7 +176,8 @@ class PolesFigureFile(BeamIntensityFile):
                     if beam_intensity_file_list is not []:
                         for i in beam_intensity_file_list:
                             j = BeamIntensityFile(i)
-                            beam_intensity_float_list.append(j.raw_file_reader())
+                            beam_intensity_float_list.append(
+                                j.raw_file_reader())
                             logging.debug(
                                 ("Successfully load beam"
                                  " intensity file {0}").format(i)
@@ -305,108 +308,6 @@ class PolesFigureFile(BeamIntensityFile):
 
         return intensity_new_matrix
 
-    @classmethod
-    def peak_search(cls, int_data):
-
-        def sort_index_list(index_list):
-            logging.debug("index list before sort:{0}".format(index_list))
-            khi_sorted_list = sorted(index_list, key=lambda pair: pair[1])
-            chi_index_list = [l[0] for l in khi_sorted_list]
-            shifted_index_int = chi_index_list.index(max(chi_index_list))
-            sorted_index_list = [None] * len(index_list)
-            for l in range(len(index_list)):
-                sorted_index_list[l - shifted_index_int] = khi_sorted_list[l]
-            logging.debug(
-                "index list after sort:{0}".format(sorted_index_list)
-            )
-            return sorted_index_list
-
-        neighborhood = generate_binary_structure(2, 2)
-        for i in range(3):
-            int_data = gaussian_filter(int_data, 4, mode='nearest')
-
-        local_max = (
-            maximum_filter(int_data, footprint=neighborhood) == int_data
-        )
-        index = np.asarray(np.where(local_max))
-        filtered_index_list = [
-            [i, j] for (i, j) in zip(index[0, :], index[1, :])
-            ]
-
-        chi_threshold = 40
-        filtered_index_list = [
-            i for i in filtered_index_list if i[0] < chi_threshold
-            ]
-
-        peak_intensity_matrix, points, _ = cls.square(
-            int_data, filtered_index_list, [10, 10]
-        )
-        peak_intensity_matrix_bigger, points_more, _ = cls.square(
-            int_data, filtered_index_list, [20, 20]
-        )
-        peak_intensity_matrix = (
-            peak_intensity_matrix -
-            (
-                (peak_intensity_matrix_bigger - peak_intensity_matrix) /
-                (points_more - points) *
-                points
-            )
-        )
-        peak_intensity_matrix = list(peak_intensity_matrix)
-        peak_intensity_matrix_copy = peak_intensity_matrix.copy()
-        new_filtered_index_list = []
-        for i in range(4):
-            index = peak_intensity_matrix.index(
-                max(peak_intensity_matrix_copy)
-            )
-            new_filtered_index_list.append(
-                filtered_index_list[index]
-            )
-            peak_intensity_matrix_copy.pop(
-                peak_intensity_matrix_copy.index(
-                    max(peak_intensity_matrix_copy)
-                )
-            )
-        filtered_index_list = new_filtered_index_list
-
-        filtered_index_list = sort_index_list(filtered_index_list)
-        return filtered_index_list
-
-    @staticmethod
-    def square(intensity_matrix, index_list, size_list, **param):
-        logging.debug("size_list: {0}".format(size_list))
-        peak_intensity_list = []
-        peak_matrix_points = []
-        square_instances = []
-        logging.debug("The square size is {0}".format(size_list))
-
-        for i in index_list:
-            square_instance = Square(
-                i, size_list, limitation=intensity_matrix.shape
-            )
-            square_instances.append(square_instance)
-
-        for i in square_instances:
-            if ('axes' in param) and param['axes']:
-                i.draw(param['axes'])
-            else:
-                pass
-
-            peak_intensity_int, peak_matrix_point_int = i.sum(
-                intensity_matrix
-            )
-            peak_intensity_list.append(peak_intensity_int)
-            peak_matrix_points.append(peak_matrix_point_int)
-
-        peak_intensity_matrix = np.asanyarray(peak_intensity_list)
-        peak_matrix_points_matrix = np.asanyarray(peak_matrix_points)
-
-        return (
-            peak_intensity_matrix,
-            peak_matrix_points_matrix,
-            square_instances
-        )
-
     def save_config(self):
         config = configparser.ConfigParser()
         directory = os.path.dirname(self.raw_file)
@@ -415,7 +316,79 @@ class PolesFigureFile(BeamIntensityFile):
         with open(os.path.join(directory, 'config.ini'), 'w') as configfile:
             config.write(configfile)
 
-    def plot_polar_image(self, is_show_image=False, is_log_scale=True):
+    def _print_log(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            logging.info("Start to %s." % func.__name__)
+            result = func(*args, **kwargs)
+            logging.info(
+                "{0} Finished!\n----------------------------------"
+                "------------------------------".format(func.__name__)
+            )
+            return result
+
+        return wrapper
+
+    @_print_log
+    def plot(self, **param):
+        """Plot the 2D Image.
+        Args:
+            is_show_image: Boolean value control if show the image
+        Returns:
+            None
+        """
+        if self.data_dict is None:
+            data_dict = self.raw_file_reader()
+            self.data_dict = data_dict
+        else:
+            data_dict = self.data_dict
+
+        ax2d = plt.gca()
+        im = ax2d.imshow(
+            data_dict['int_data'],
+            origin="lower",
+            norm=LogNorm(
+                vmin=int(self.preference_dict['v_min']),
+                vmax=int(self.preference_dict['v_max'])
+            )
+        )
+        ax2d.tick_params(axis='both', which='major', labelsize=16)
+        plt.colorbar(
+            im, ax=ax2d, extend='max', fraction=0.03, pad=0.04, shrink=0.6
+        )
+        self.display_save_image(**param)
+
+    def display_save_image(self, **param):
+        sample_name_str = self.preference_dict['sample']
+
+        plt.title(sample_name_str + self.label + "\n")
+
+        if 'is_show_image' in param and param['is_show_image']:
+            plt.show()
+
+        figure_file_name = os.path.join(
+            os.path.dirname(self.raw_file),
+            sample_name_str + '_' + self.label + '.png'
+        )
+
+        if 'is_save_image' in param and not param['is_save_image']:
+            pass
+        else:
+            logging.info(
+                "Saving figure file to {0}".format(figure_file_name))
+            plt.savefig(
+                figure_file_name,
+                dpi=200,
+                bbox_inches='tight')
+
+
+class PolarFigure(TwoDFigure):
+    def __init__(self, raw_file):
+        super(PolarFigure, self).__init__(raw_file)
+        self.label = 'Polar'
+
+    @TwoDFigure._print_log
+    def plot(self, is_log_scale=1, **param):
         """Plot the Polar coordinate system Image.
             Args:
                 is_show_image: Boolean value control if show the image
@@ -423,15 +396,12 @@ class PolesFigureFile(BeamIntensityFile):
             Returns:
                 None
         """
-        logging.info("Start to plot polar coordinate image.")
-
         if self.data_dict is None:
             data_dict = self.raw_file_reader()
             self.data_dict = data_dict
         else:
             data_dict = self.data_dict
 
-        sample_name_str = self.preference_dict['sample']
         ctn_number = int(self.preference_dict['ctn_number'])
         v_max = int(self.preference_dict['v_max'])
         v_min = int(self.preference_dict['v_min'])
@@ -474,135 +444,137 @@ class PolesFigureFile(BeamIntensityFile):
                 int_data_matrix,
                 contour_levels
             )
+
         color_bar = fig.colorbar(cax, pad=0.1, format="%.f", extend='max')
         color_bar.ax.tick_params(labelsize=16)
         color_bar.set_label(r'$Counts\ per\ second $', size=15)
-        plt.title(sample_name_str + "\n")
+        self.display_save_image(**param)
 
-        if is_show_image:
-            plt.show(all)
 
-        figure_file_name = os.path.join(
-            os.path.dirname(self.raw_file),
-            sample_name_str + "_PF.png"
+class MeasureFigure(TwoDFigure):
+    def __init__(self, raw_file):
+        super(MeasureFigure, self).__init__(raw_file)
+        self.label = 'measure'
+
+    @classmethod
+    def peak_search(cls, int_data):
+        def sort_index_list(index_list):
+            logging.debug("index list before sort:{0}".format(index_list))
+            khi_sorted_list = sorted(index_list, key=lambda pair: pair[1])
+            chi_index_list = [l[0] for l in khi_sorted_list]
+            shifted_index_int = chi_index_list.index(max(chi_index_list))
+            sorted_index_list = [None] * len(index_list)
+            for l in range(len(index_list)):
+                sorted_index_list[l - shifted_index_int] = khi_sorted_list[l]
+            logging.debug(
+                "index list after sort:{0}".format(sorted_index_list)
+            )
+            return sorted_index_list
+
+        neighborhood = generate_binary_structure(2, 2)
+        for i in range(3):
+            int_data = gaussian_filter(int_data, 4, mode='nearest')
+
+        local_max = (
+            maximum_filter(int_data, footprint=neighborhood) == int_data
         )
-        logging.info(
-            "Saving polar figure file to {0}".format(figure_file_name))
-        plt.savefig(
-            figure_file_name,
-            dpi=200,
-            bbox_inches='tight'
+        index = np.asarray(np.where(local_max))
+        filtered_index_list = [
+            [i, j] for (i, j) in zip(index[0, :], index[1, :])
+            ]
+
+        chi_threshold = 40
+        filtered_index_list = [
+            i for i in filtered_index_list if i[0] < chi_threshold
+            ]
+
+        peak_intensity_matrix, points, _ = cls.square(
+            int_data, filtered_index_list, [10, 10], is_plot_square=0
         )
-        del data_dict
-        logging.info(
-            "Polar plot Finished!\n"
-            "-----------------------------------------------------------------"
+        peak_intensity_matrix_bigger, points_more, _ = cls.square(
+            int_data, filtered_index_list, [20, 20], is_plot_square=0
         )
-
-    def plot_2d_image(self, is_show_image=False, **param):
-        """Plot the 2D Image.
-        Args:
-            is_show_image: Boolean value control if show the image
-        Returns:
-            None
-        """
-        logging.info("Start to plot 2D image.")
-
-        if self.data_dict is None:
-            data_dict = self.raw_file_reader()
-            self.data_dict = data_dict
-        else:
-            data_dict = self.data_dict
-
-        sample_name_str = self.preference_dict['sample']
-
-        if "outer_space_axes" in param and param['outer_space_axes']:
-            ax2d = param['outer_space_axes']
-            logging.info("Use outer space axes instead.")
-        else:
-            plt.figure(figsize=(25, 5))
-            ax2d = plt.subplot(111)
-        im = ax2d.imshow(
-            data_dict['int_data'],
-            origin="lower",
-            norm=LogNorm(
-                vmin=int(self.preference_dict['v_min']),
-                vmax=int(self.preference_dict['v_max'])
+        peak_intensity_matrix = (
+            peak_intensity_matrix -
+            (
+                (peak_intensity_matrix_bigger - peak_intensity_matrix) /
+                (points_more - points) *
+                points
             )
         )
-        ax2d.tick_params(axis='both', which='major', labelsize=16)
-        plt.colorbar(
-            im, ax=ax2d, extend='max', fraction=0.03, pad=0.04, shrink=0.6
-        )
-        plt.title(sample_name_str + "\n")
-        figure_file_name = os.path.join(
-            os.path.dirname(self.raw_file),
-            sample_name_str + '_2D.png'
-        )
-        logging.info("Saving 2D figure file to {0}".format(figure_file_name))
-
-        plt.savefig(
-            figure_file_name,
-            dpi=200,
-            bbox_inches='tight')
-        if is_show_image:
-            plt.show(all)
-
-        del data_dict
-        logging.info(
-            "2D plot Finished!\n"
-            "-----------------------------------------------------------------"
-        )
-
-    def plot_2d_measurement(
-            self, is_show_image=False, is_save_image=1, **param):
-        """Plot 2d measurement image.
-
-        :param is_show_image: boolean value control if show the image
-        :param is_save_image: boolean value control if save the image
-        :return:
-            result['peak_intensity_matrix']: peak net intensity matrix,
-            result['index']: peak position 2d list
-
-        """
-        logging.info("Start to plot 2D measurement image.")
-        if self.data_dict is None:
-            data_dict = self.raw_file_reader()
-            self.data_dict = data_dict
-        else:
-            data_dict = self.data_dict
-
-        if "outer_space_axes" in param and param['outer_space_axes']:
-            ax_2d_calculation = param['outer_space_axes']
-            logging.info("Use outer space axes instead.")
-        else:
-            plt.figure(figsize=(25, 5))
-            ax_2d_calculation = plt.subplot(111)
-            im_2d_calculation = ax_2d_calculation.imshow(
-                data_dict['int_data'],
-                origin="lower",
-                norm=LogNorm(
-                    vmin=int(self.preference_dict['v_min']),
-                    vmax=int(self.preference_dict['v_max'])
+        peak_intensity_matrix = list(peak_intensity_matrix)
+        peak_intensity_matrix_copy = peak_intensity_matrix.copy()
+        new_filtered_index_list = []
+        for i in range(4):
+            index = peak_intensity_matrix.index(
+                max(peak_intensity_matrix_copy)
+            )
+            new_filtered_index_list.append(
+                filtered_index_list[index]
+            )
+            peak_intensity_matrix_copy.pop(
+                peak_intensity_matrix_copy.index(
+                    max(peak_intensity_matrix_copy)
                 )
             )
-            ax_2d_calculation.tick_params(axis='both', which='major',
-                                          labelsize=16)
-            plt.title(
-                self.preference_dict['sample'] + " micro twins measurement.\n")
-            plt.colorbar(
-                im_2d_calculation,
-                ax=ax_2d_calculation,
-                extend='max',
-                fraction=0.046,
-                pad=0.04
+        filtered_index_list = new_filtered_index_list
+
+        filtered_index_list = sort_index_list(filtered_index_list)
+        return filtered_index_list
+
+    @staticmethod
+    def square(intensity_matrix, index_list, size_list, is_plot_square=1):
+        logging.debug("size_list: {0}".format(size_list))
+        peak_intensity_list = []
+        peak_matrix_points = []
+        square_instances = []
+        logging.info("The square size is {0}".format(size_list))
+
+        for i in index_list:
+            square_instance = Square(
+                i, size_list, limitation=intensity_matrix.shape
             )
+            square_instances.append(square_instance)
+
+        for i in square_instances:
+            if is_plot_square:
+                i.draw()
+
+            peak_intensity_int, peak_matrix_point_int = i.sum(
+                intensity_matrix
+            )
+            peak_intensity_list.append(peak_intensity_int)
+            peak_matrix_points.append(peak_matrix_point_int)
+
+        peak_intensity_matrix = np.asanyarray(peak_intensity_list)
+        peak_matrix_points_matrix = np.asanyarray(peak_matrix_points)
+
+        return (
+            peak_intensity_matrix,
+            peak_matrix_points_matrix,
+            square_instances
+        )
+
+    @TwoDFigure._print_log
+    def plot(self, is_calculation=0, **param):
+        result = self.int_points(is_plot_square=(not is_calculation), **param)
+        if not is_calculation:
+            super(MeasureFigure, self).plot(**param)
+        return result
+
+    def int_points(self, is_plot_square=1, **param):
+        if self.data_dict is None:
+            data_dict = self.raw_file_reader()
+            self.data_dict = data_dict
+        else:
+            data_dict = self.data_dict
 
         if "outer_index_list" in param and param['outer_index_list']:
             index_list = param['outer_index_list']
         else:
             index_list = self.peak_search(data_dict['int_data'])
             logging.debug(index_list)
+
         size_list = list(
             map(int, self.preference_dict['square_size'].split(',')))
 
@@ -612,16 +584,15 @@ class PolesFigureFile(BeamIntensityFile):
             data_dict['int_data'],
             index_list,
             size_list,
-            axes=ax_2d_calculation
+            is_plot_square=is_plot_square
         )
-
         (outer_peak_intensity_matrix,
          outer_peak_matrix_points_matrix,
          outer_square_instances) = self.square(
             data_dict['int_data'],
             index_list,
             [i + 4 for i in size_list],
-            axes=ax_2d_calculation
+            is_plot_square=is_plot_square
         )
 
         square_instances = inner_square_instances + outer_square_instances
@@ -634,36 +605,6 @@ class PolesFigureFile(BeamIntensityFile):
             inner_peak_intensity_matrix -
             background_noise_intensity_float * inner_peak_matrix_points_matrix)
 
-        # mt_name_list = ['MT-A', 'MT-D', 'MT-C', 'MT-B']
-        # for (i, j, k) in zip(
-        #         index_list, peak_net_intensity_matrix, mt_name_list):
-        #     ax_2d_calculation.text(
-        #         i[1],
-        #         i[0],
-        #         "{1} = {0:.2f}".format(j, k)
-        #     )
-        figure_file_name = os.path.join(
-            os.path.dirname(self.raw_file),
-            'mt_density_' + self.preference_dict['sample'] + '.png'
-        )
-        logging.info(
-            "Saving 2D measurement figure file to {0}".format(
-                figure_file_name
-            )
-        )
-        if is_save_image:
-            plt.savefig(
-                figure_file_name,
-                dpi=200,
-                bbox_inches='tight')
-        else:
-            pass
-
-        if is_show_image:
-            plt.show(all)
-        else:
-            pass
-
         del data_dict
 
         result = {
@@ -671,10 +612,6 @@ class PolesFigureFile(BeamIntensityFile):
             'index': index_list,
             'square_instances': square_instances
         }
-        logging.info(
-            "2D measurement Finished!\n"
-            "-----------------------------------------------------------------"
-        )
 
         return result
 
@@ -708,10 +645,9 @@ class PolesFigureFile(BeamIntensityFile):
         }
         return result
 
+    @TwoDFigure._print_log
     def print_result_csv(self):
-        logging.info("Micro Twins analysis starts.\n ------------------------")
-        self.plot_2d_image()
-        result = self.plot_2d_measurement()
+        result = self.plot()
         result = self.mt_intensity_to_fraction(result)
 
         mt_table_file = os.path.join(
@@ -723,10 +659,6 @@ class PolesFigureFile(BeamIntensityFile):
             spam_writer = csv.writer(tableTeX, dialect='excel')
             spam_writer.writerow(['MT-A', 'MT-D', 'MT-C', 'MT-B'])
             spam_writer.writerow(result['peak_intensity_matrix'])
-        logging.info(
-            "Calculation Finished!\n"
-            "-----------------------------------------------------------------"
-        )
 
 
 if __name__ == '__main__':
@@ -743,7 +675,7 @@ if __name__ == '__main__':
         filetypes=[("Raw files", "*.raw")]
     )
     logging.info("File {0} was chosen.".format(raw_file_name))
-    sample = PolesFigureFile(raw_file_name)
+    sample = MeasureFigure(raw_file_name)
     # sample.plot_polar_image()
     sample.print_result_csv()
     sample.save_config()

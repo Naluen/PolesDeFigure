@@ -7,8 +7,8 @@ from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 
+from Poles import TwoDFigure, MeasureFigure
 from gui.main_window import UiMainWindow
-from Poles import PolesFigureFile
 
 try:
     import configparser
@@ -37,7 +37,8 @@ class PfGui(QtWidgets.QMainWindow):
         self.ui.actionOpen_2.triggered.connect(self.open_file)
         self.ui.actionSave.triggered.connect(self.save_image)
 
-        self.figure = plt.figure(figsize=(25, 5))
+        self.figure = plt.figure()
+        self.figure.set_size_inches(10, 2)
         self.canvas = FigureCanvas(self.figure)
         self.ui.verticalLayout.addWidget(self.canvas)
         self.connect_canvas()
@@ -73,11 +74,11 @@ class PfGui(QtWidgets.QMainWindow):
         raw_file_name = str(raw_file_name[0])
 
         if raw_file_name:
-            sample = PolesFigureFile(raw_file_name)
+            sample = TwoDFigure(raw_file_name)
             self.figure.clear()
-            axes = self.figure.add_subplot(111)
-            axes.hold('True')
-            sample.plot_2d_image(outer_space_axes=axes)
+            plt.gca()
+
+            sample.plot()
             sample.guess_sample_name()
             self.canvas.draw()
 
@@ -88,7 +89,7 @@ class PfGui(QtWidgets.QMainWindow):
 
             self.ui.push_button.setEnabled(True)
 
-            self.sample = sample
+            self.sample = raw_file_name
 
         else:
             pass
@@ -127,18 +128,16 @@ class PfGui(QtWidgets.QMainWindow):
         with open(config_file_str, 'w') as config_file:
             config.write(config_file)
 
-
-
     def automatically_detect_peak(self):
-        ax_list = self.figure.axes
-        sample = self.sample
+        self.figure.clear()
+        sample = MeasureFigure(self.sample)
+        self.sample = sample
 
         if self.results['square_instances'] is not None:
             for i in self.results['square_instances']:
                 i.remove()
 
-        results = sample.plot_2d_measurement(
-            outer_space_axes=ax_list[0])
+        results = sample.plot()
         self.results = results
         self.canvas.draw()
 
@@ -167,36 +166,33 @@ class PfGui(QtWidgets.QMainWindow):
         ax_list = self.figure.axes
         if self.results['square_instances'] is None:
             return
-        for square in self.results['square_instances']:
-            if event.inaxes != ax_list[0]:
-                pass
-            else:
-                contains = square.is_contained([event.xdata, event.ydata])
-                if not contains:
+        else:
+            for square in self.results['square_instances']:
+                if event.inaxes != ax_list[0]:
                     pass
                 else:
-                    [x0, y0] = square.central_point_list
-                    self.selected_square.append(square)
-                    self.press = x0, y0, event.xdata, event.ydata
+                    contains = square.is_contained([event.xdata, event.ydata])
+                    if not contains:
+                        pass
+                    else:
+                        [x0, y0] = square.central_point_list
+                        self.selected_square.append(square)
+                        self.press = x0, y0, event.xdata, event.ydata
 
     def on_motion(self, event):
-        ax_list = self.figure.axes
         if self.results['square_instances'] is None:
             return
         if self.results['square_instances'] is not []:
             for square in self.selected_square:
-                if event.inaxes != ax_list[0]:
+                if event.inaxes != self.figure.axes[0]:
                     pass
                 else:
                     x0, y0, init_mouse_x, init_mouse_y = self.press
                     dy = event.xdata - init_mouse_x
                     dx = event.ydata - init_mouse_y
-                    try:
-                        square.remove()
-                    except ValueError:
-                        pass
+                    square.remove()
                     square.central_point_list = [x0 + dx, y0 + dy]
-                    square.draw(ax_list[0])
+                    square.draw()
 
         self.canvas.draw()
 
@@ -206,12 +202,14 @@ class PfGui(QtWidgets.QMainWindow):
         self.press = None
         self.selected_square = []
         self.canvas.draw()
+
         outer_index_list = [
             i.central_point_list for i in self.results['square_instances'][:4]
             ]
 
-        results = self.sample.plot_2d_measurement(
+        results = self.sample.plot(
             is_save_image=0,
+            is_calculation=1,
             outer_index_list=outer_index_list
         )
         results = self.sample.mt_intensity_to_fraction(results)
