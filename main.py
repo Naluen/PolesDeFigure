@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 
-from Poles import TwoDFigure, MeasureFigure
+from Poles import TwoDFigureRaw, MeasureFigureRaw
 from gui.main_window import UiMainWindow
 
 try:
@@ -37,8 +37,7 @@ class PfGui(QtWidgets.QMainWindow):
         self.ui.actionOpen_2.triggered.connect(self.open_file)
         self.ui.actionSave.triggered.connect(self.save_image)
 
-        self.figure = plt.figure()
-        self.figure.set_size_inches(10, 2)
+        self.figure = plt.figure(figsize=(25, 5))
         self.canvas = FigureCanvas(self.figure)
         self.ui.verticalLayout.addWidget(self.canvas)
         self.connect_canvas()
@@ -74,16 +73,15 @@ class PfGui(QtWidgets.QMainWindow):
         raw_file_name = str(raw_file_name[0])
 
         if raw_file_name:
-            sample = TwoDFigure(raw_file_name)
+            sample = TwoDFigureRaw(raw_file_name)
             self.figure.clear()
             plt.gca()
 
             sample.plot()
-            sample.guess_sample_name()
             self.canvas.draw()
 
             config.set('db', 'directory', os.path.dirname(raw_file_name))
-            config.set('db', 'sample', sample.preference_dict['sample'])
+            config.set('db', 'sample', sample.plot_dict['db']['sample'])
             with open(config_file_str, 'w') as config_file:
                 config.write(config_file)
 
@@ -95,7 +93,6 @@ class PfGui(QtWidgets.QMainWindow):
             pass
 
     def save_image(self):
-
         config = configparser.ConfigParser()
         config_file_str = os.path.join(
             os.path.dirname(sys.argv[0]),
@@ -129,15 +126,14 @@ class PfGui(QtWidgets.QMainWindow):
             config.write(config_file)
 
     def automatically_detect_peak(self):
-        self.figure.clear()
-        sample = MeasureFigure(self.sample)
-        self.sample = sample
+        sample = MeasureFigureRaw(self.sample)
+        self.instance = sample
 
         if self.results['square_instances'] is not None:
             for i in self.results['square_instances']:
                 i.remove()
 
-        results = sample.plot()
+        results = sample.plot(is_show=1)
         self.results = results
         self.canvas.draw()
 
@@ -171,10 +167,7 @@ class PfGui(QtWidgets.QMainWindow):
                 if event.inaxes != ax_list[0]:
                     pass
                 else:
-                    contains = square.is_contained([event.xdata, event.ydata])
-                    if not contains:
-                        pass
-                    else:
+                    if [event.xdata, event.ydata] in square:
                         [x0, y0] = square.central_point_list
                         self.selected_square.append(square)
                         self.press = x0, y0, event.xdata, event.ydata
@@ -207,12 +200,12 @@ class PfGui(QtWidgets.QMainWindow):
             i.central_point_list for i in self.results['square_instances'][:4]
             ]
 
-        results = self.sample.plot(
+        results = self.instance.plot(
             is_save_image=0,
             is_calculation=1,
             outer_index_list=outer_index_list
         )
-        results = self.sample.mt_intensity_to_fraction(results)
+        results = self.instance.mt_intensity_to_fraction(results)
         text_label_list = [
             self.ui.mt_a_value,
             self.ui.mt_d_value,
