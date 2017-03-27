@@ -37,7 +37,8 @@ class PfGui(QtWidgets.QMainWindow):
         self.ui.actionOpen_2.triggered.connect(self.open_file)
         self.ui.actionSave.triggered.connect(self.save_image)
 
-        self.figure = plt.figure(figsize=(25, 5))
+        self.figure = plt.figure()
+        self.figure.set_size_inches((30, 6))
         self.canvas = FigureCanvas(self.figure)
         self.ui.verticalLayout.addWidget(self.canvas)
         self.connect_canvas()
@@ -79,11 +80,6 @@ class PfGui(QtWidgets.QMainWindow):
 
             sample.plot()
             self.canvas.draw()
-
-            config.set('db', 'directory', os.path.dirname(raw_file_name))
-            config.set('db', 'sample', sample.plot_dict['db']['sample'])
-            with open(config_file_str, 'w') as config_file:
-                config.write(config_file)
 
             self.ui.push_button.setEnabled(True)
 
