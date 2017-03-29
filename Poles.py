@@ -1,15 +1,14 @@
 import logging
-import os
-from collections import deque
-
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from collections import deque
 from matplotlib.colors import LogNorm
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.filters import maximum_filter
 from scipy.ndimage.morphology import generate_binary_structure
 
-from RawReader import RawReader as RawReader
+from Reader import Reader as Reader
 from Square import Square as Square
 
 
@@ -36,9 +35,9 @@ class PrintLogDecorator(object):
 
 
 class TwoDFigureRaw(object):
-    def __init__(self, raw_file):
+    def __init__(self, file):
         self.label = '2D'
-        self.raw_file = raw_file
+        self.file = file
 
     @staticmethod
     def save_config(plot_dict):
@@ -53,10 +52,10 @@ class TwoDFigureRaw(object):
 
     @PrintLogDecorator()
     def plot(self, is_save=1, is_show=0):
-        data_dict, plot_dict = RawReader(self.raw_file).matrix_data()
+        data_dict, plot_dict = Reader(self.file).matrix_data()
 
-        plot_dict['db']['directory'] = os.path.dirname(self.raw_file)
-        plot_dict['db']['raw_file'] = os.path.basename(self.raw_file)
+        plot_dict['db']['directory'] = os.path.dirname(self.file)
+        plot_dict['db']['file'] = os.path.basename(self.file)
 
         v_max = int(plot_dict['db']['v_max'])
         v_min = int(plot_dict['db']['v_min'])
@@ -97,13 +96,13 @@ class TwoDFigureRaw(object):
 
 
 class PolarFigureRaw(TwoDFigureRaw):
-    def __init__(self, raw_file):
-        super(PolarFigureRaw, self).__init__(raw_file)
+    def __init__(self, file):
+        super(PolarFigureRaw, self).__init__(file)
         self.label = 'Polar'
 
     @PrintLogDecorator()
     def plot(self, is_save=1, is_show=0):
-        data_dict, plot_dict = RawReader(self.raw_file).matrix_data()
+        data_dict, plot_dict = Reader(self.file).matrix_data()
 
         data_dict['phi_data'] = np.radians(
             data_dict['phi_data'] +
@@ -134,8 +133,8 @@ class PolarFigureRaw(TwoDFigureRaw):
 
 
 class MeasureFigureRaw(TwoDFigureRaw):
-    def __init__(self, raw_file):
-        super(MeasureFigureRaw, self).__init__(raw_file)
+    def __init__(self, file):
+        super(MeasureFigureRaw, self).__init__(file)
         self.label = 'measure'
 
     @staticmethod
@@ -248,31 +247,9 @@ class MeasureFigureRaw(TwoDFigureRaw):
             square_instances
         )
 
-    @staticmethod
-    def beam_intensity(directory, default_beam_intensity):
-        logging.info("Starts calculation beam intensity.")
-
-        source_file_list = [
-            os.path.join(directory, 'beam1mm.raw'),
-            os.path.join(directory, 'beam8mm.raw')]
-        beam_int_list = [(max(RawReader(i).matrix_data()[0]['int_data']) * 8940)
-                         for i in source_file_list if os.path.isfile(i)]
-        if not beam_int_list:
-            logging.warning("Could not found default beam intensity files")
-            beam_int_list = [default_beam_intensity]
-            logging.info(
-                "Got Source Beam Intensity from config file.\n",
-                "Source Beam Intensity = {0}.".format(
-                    beam_int_list[0])
-            )
-        beam_int_list = np.asarray(beam_int_list)
-        beam_int_list = np.mean(beam_int_list)
-
-        return beam_int_list
-
     @PrintLogDecorator()
     def plot(self, is_save=1, is_show=0, **param):
-        data_dict, plot_dict = RawReader(self.raw_file).matrix_data()
+        data_dict, plot_dict = Reader(self.file).matrix_data()
 
         if "outer_index_list" in param and param['outer_index_list']:
             index_list = param['outer_index_list']
@@ -340,10 +317,7 @@ class MeasureFigureRaw(TwoDFigureRaw):
             0.426843274 / (eta[2] / eta[0]),
             0.72278158 / (eta[3] / eta[0])
         ])
-        beam_intensity_float = self.beam_intensity(
-            result['dict']['db']['directory'],
-            result['dict']['db']['beam_intensity']
-        )
+        beam_intensity_float = float(result['dict']['db']['beam_intensity'])
         peak_net_intensity_matrix = (
             peak_net_intensity_matrix *
             10000 *
