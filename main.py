@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 
-from Poles import TwoDFigureRaw, MeasureFigureRaw
+import Reader
 from gui.main_window import UiMainWindow
 
 try:
@@ -27,12 +27,15 @@ class PfGui(QtWidgets.QMainWindow):
             'index': None,
             'square_instances': None
         }
-        self.sample = None
-        self.press = None
+        self.instance = Reader.TwoDScan()
         self.selected_square = []
         self.cid_press = None
         self.cid_release = None
         self.cid_motion = None
+
+        os.chdir(os.path.dirname(sys.argv[0]))
+        self.gui_cfg = configparser.ConfigParser()
+        self.gui_cfg.read('GUI.cfg')
 
         self.ui.actionOpen_2.triggered.connect(self.open_file)
         self.ui.actionSave.triggered.connect(self.save_image)
@@ -53,19 +56,7 @@ class PfGui(QtWidgets.QMainWindow):
             'square_instances': None
         }
 
-        config = configparser.ConfigParser()
-        config_file_str = os.path.join(
-            os.path.dirname(sys.argv[0]),
-            'config.ini'
-        )
-        config.read(
-            config_file_str
-        )
-
-        if os.path.exists(config.get('db', 'directory')):
-            dir_item = config.get('db', 'directory')
-        else:
-            dir_item = '\home'
+        dir_item = self.gui_cfg.get('DEFAULT', 'directory') or '\home'
 
         raw_file_name = QtWidgets.QFileDialog.getOpenFileName(
             self, 'Open file',
@@ -74,41 +65,27 @@ class PfGui(QtWidgets.QMainWindow):
         raw_file_name = str(raw_file_name[0])
 
         if raw_file_name:
-            sample = TwoDFigureRaw(raw_file_name)
+            raw_instance = Reader.RawFile(raw_file_name).read_data()
             self.figure.clear()
-            plt.gca()
-
-            sample.plot()
+            raw_instance.plot(is_show=0, is_save=0)
             self.canvas.draw()
-
             self.ui.push_button.setEnabled(True)
-
-            self.sample = raw_file_name
-
+            self.instance = raw_instance
+            self.gui_cfg.set('DEFAULT', 'directory',
+                             os.path.dirname(raw_file_name))
         else:
             pass
 
     def save_image(self):
-        config = configparser.ConfigParser()
-        config_file_str = os.path.join(
-            os.path.dirname(sys.argv[0]),
-            'config.ini'
-        )
-        config.read(
-            config_file_str
-        )
-
-        if os.path.exists(config.get('db', 'directory')):
-            dir_item = config.get('db', 'directory')
-        else:
-            dir_item = '\home'
-
         supported_file_dict = self.canvas.get_supported_filetypes()
         supported_file_list = [
             "{0} (*.{1})".format(supported_file_dict[i], i)
             for i in supported_file_dict
             ]
         supported_file_str = ";;".join(supported_file_list)
+
+        dir_item = self.gui_cfg.get('DEFAULT', 'directory') or '\home'
+
         image_file_name = QtWidgets.QFileDialog.getSaveFileName(
             self, 'Open file',
             dir_item,
@@ -117,31 +94,21 @@ class PfGui(QtWidgets.QMainWindow):
 
         self.figure.savefig(image_file_name, bbox_inches='tight')
 
-        config.set('db', 'directory', os.path.dirname(image_file_name))
-        with open(config_file_str, 'w') as config_file:
-            config.write(config_file)
+    def save_config(self):
+        with open('GUI.cfg', 'w') as config_file:
+            self.gui_cfg.write(config_file)
 
     def automatically_detect_peak(self):
-        sample = MeasureFigureRaw(self.sample)
-        self.instance = sample
-
-        if self.results['square_instances'] is not None:
+        if self.results['square_instances']:
             for i in self.results['square_instances']:
                 i.remove()
 
-        results = sample.plot(is_show=1)
+        results = self.instance.plot_square(is_show=0, is_save=0)
         self.results = results
         self.canvas.draw()
 
-        results = sample.mt_intensity_to_fraction(results)
-        text_label_list = [
-            self.ui.mt_a_value,
-            self.ui.mt_d_value,
-            self.ui.mt_c_value,
-            self.ui.mt_b_value
-        ]
-        for (i, j) in zip(text_label_list, results['peak_intensity_matrix']):
-            i.setText(str(j))
+        results = self.instance.mt_intensity_to_fraction(results)
+        self.update_fraction_list(results)
 
     def connect_canvas(self):
         self.cid_press = self.canvas.mpl_connect(
@@ -158,58 +125,52 @@ class PfGui(QtWidgets.QMainWindow):
         ax_list = self.figure.axes
         if self.results['square_instances'] is None:
             return
-        else:
-            for square in self.results['square_instances']:
-                if event.inaxes != ax_list[0]:
-                    pass
-                else:
-                    if [event.xdata, event.ydata] in square:
-                        [x0, y0] = square.central_point_list
-                        self.selected_square.append(square)
-                        self.press = x0, y0, event.xdata, event.ydata
+        if event.inaxes != ax_list[0]:
+            return
+        for square in self.results['square_instances']:
+            if [event.xdata, event.ydata] in square:
+                self.selected_square.append(square)
 
     def on_motion(self, event):
-        if self.results['square_instances'] is None:
+        if not self.selected_square:
             return
-        if self.results['square_instances'] is not []:
-            for square in self.selected_square:
-                if event.inaxes != self.figure.axes[0]:
-                    pass
-                else:
-                    x0, y0, init_mouse_x, init_mouse_y = self.press
-                    dy = event.xdata - init_mouse_x
-                    dx = event.ydata - init_mouse_y
-                    square.remove()
-                    square.central_point_list = [x0 + dx, y0 + dy]
-                    square.draw()
+        if event.inaxes != self.figure.axes[0]:
+            return
+        [init_mouse_y, init_mouse_x] = self.selected_square[0].cr_list
+        for square in self.selected_square:
+            dy = event.xdata - init_mouse_x + 30
+            dx = event.ydata - init_mouse_y
+            square.move((dx, dy))
 
         self.canvas.draw()
 
-    def on_release(self, event):
-        if self.results['square_instances'] is None:
-            return
-        self.press = None
-        self.selected_square = []
-        self.canvas.draw()
-
-        outer_index_list = [
-            i.central_point_list for i in self.results['square_instances'][:4]
-            ]
-
-        results = self.instance.plot(
-            is_save_image=0,
-            is_calculation=1,
-            outer_index_list=outer_index_list
-        )
-        results = self.instance.mt_intensity_to_fraction(results)
+    def update_fraction_list(self, results):
         text_label_list = [
             self.ui.mt_a_value,
             self.ui.mt_d_value,
             self.ui.mt_c_value,
             self.ui.mt_b_value
         ]
-        for (i, j) in zip(text_label_list, results['peak_intensity_matrix']):
+        for (i, j) in zip(text_label_list, results):
             i.setText(str(j))
+
+    def on_release(self, event):
+        if self.results['square_instances'] is None:
+            return
+        self.selected_square = []
+
+        outer_index_list = [
+            i.cr_list for i in self.results['square_instances'][:4]
+            ]
+        results_dict = self.instance.plot_square(
+            is_show=0,
+            is_save=0,
+            is_plot=0,
+            outer_index_list=outer_index_list
+        )
+        results = self.instance.mt_intensity_to_fraction(results_dict)
+        self.instance.print_result_csv(results)
+        self.update_fraction_list(results)
 
     def disconnect(self):
         self.canvas.mpl_disconnect(self.cid_press)
@@ -229,4 +190,5 @@ if __name__ == '__main__':
     MyProgram = PfGui()
     MyProgram.show()
     Program.aboutToQuit.connect(MyProgram.disconnect)
+    Program.aboutToQuit.connect(MyProgram.save_config)
     sys.exit(Program.exec_())
