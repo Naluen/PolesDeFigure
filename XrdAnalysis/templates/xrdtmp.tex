@@ -1,0 +1,25 @@
+\textbf{Poles-FIGURE:}
+
+Beam Intensity:
+
+\begin{center}
+   {{ (sr_int/8940)|round(2) }} * 8940 = {{ "%e"|format(sr_int) }}
+\end{center}
+
+\begin{figure*}[h]
+\centering
+    \includegraphics{ {{mt_fig}} }
+\end{figure*}
+
+\textbf{MT Measurement:}
+\begin{table}[h]
+\centering
+    \begin{tabular}{lccccr}
+        \hline
+        MT(\%)&MT-A&MT-B&MT-C&MT-D&SUM\\
+        \hline
+        {{mt|join('&')}}\\
+        \hline
+    \end{tabular}
+\end{table}
+\clearpage

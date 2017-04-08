@@ -24,12 +24,12 @@ class Square(object):
             np.floor(self.cr_list[1] - self.size_tuple[1] / 2.0)))
         x_max = min(
             int(np.floor(self.cr_list[1] + self.size_tuple[1] / 2.0)),
-            x_limit[1] - x_limit[0])
+            int(x_limit[1] - x_limit[0]))
         y_min = max(0, int(
             np.floor(self.cr_list[0] - self.size_tuple[0] / 2.0)))
         y_max = min(
             int(np.floor(self.cr_list[0] + self.size_tuple[0] / 2.0)),
-            y_limit[1] - y_limit[0])
+            int(y_limit[1] - y_limit[0]))
 
         return x_min, x_max, y_min, y_max
 
@@ -48,6 +48,7 @@ class Square(object):
 
     def sum(self):
         x_min, x_max, y_min, y_max = self.lim()
+
         intensity_result_matrix = self.int_matrix[y_min:y_max, x_min:x_max]
         peak_intensity_int = np.sum(intensity_result_matrix)
         b, p = intensity_result_matrix.shape

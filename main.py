@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 
-import Reader
+from XrdAnalysis import Reader
 from gui.main_window import UiMainWindow
 
 try:

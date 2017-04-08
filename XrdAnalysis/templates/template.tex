@@ -1,0 +1,89 @@
+\documentclass[10pt,a4paper]{article}
+\renewcommand*\thesubsection{\arabic{subsection}}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{graphicx}
+\graphicspath{{ {{}} }}
+\usepackage{subfigure}
+\usepackage{placeins}
+
+\title{ {{title}} }
+
+\setlength{\parindent}{0pt}
+\begin{document}
+
+\maketitle
+
+\clearpage
+
+
+{%- for i in sample -%}
+\section{\MakeUppercase{ {{i}} }}
+
+{% if sample_dict[i]['recipe'] %}
+\textbf{Recipe:}\\
+{{sample_dict[i]['recipe_file']}}
+{% endif %}
+{% if sample_dict[i]['XRD'] %}
+\textbf{Beam Intensity:}\\
+$$ {{sample_dict[i]['intensity']}}\quad CPS$$
+
+\textbf{Poles-FIGURE:}
+\begin{figure*}[h]
+\setcounter{subfigure}{0}
+\subfigure[Poles Figure Images]{
+
+\includegraphics[width=5in]{ {{sample_dict[i]['xrd_path']}}{{i}}_PF.png}
+}
+\subfigure[2D Images and MT density measurement]{
+\begin{minipage}[b]{0.5\textwidth}
+\includegraphics[width=5in]{ {{sample_dict[i]['xrd_path']}}mt_density_{{i}}.png}
+\end{minipage}
+}
+\end{figure*}
+
+
+\textbf{MT Measurement:}
+{{ sample_dict[i]['MT'] }}
+\clearpage
+{% endif %}
+
+{% if sample_dict[i]['AFM'] %}
+\textbf{AFM IMAGES:}
+
+\begin{figure*}[!h]
+\setcounter{subfigure}{0}
+\centering
+{% for k in sample_dict[i]['imageAFM'] %}
+\subfigure[ {{sample_dict[i]['AFMtitle'][loop.index0]}} ]{
+\includegraphics[width=3in]{ {{k}} }
+}
+{% endfor %}
+\end{figure*}
+
+
+
+\textbf{RMS:}
+\begin{equation*}
+{{sample_dict[i]['rms']}}
+\end{equation*}
+
+
+
+{% endif %}
+{% if sample_dict[i]['RSM'] %}
+\textbf{RSM-FIGURE:}
+\begin{figure*}[!h]
+\setcounter{subfigure}{0}
+\centering
+
+{%- for p in sample_dict[i]['img'] -%}
+\subfigure[ {{sample_dict[i]['rsm_num'][loop.index0]}} ]{
+\includegraphics[width=2in]{ {{p}} }
+}
+{% endfor %}
+\end{figure*}
+{% endif %}
+\clearpage
+{% endfor %}
+
+\end{document}

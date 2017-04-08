@@ -3,21 +3,40 @@ import configparser
 import logging
 import os
 import re
-import sys
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm
+from scipy.interpolate import griddata
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.filters import maximum_filter
 from scipy.ndimage.morphology import generate_binary_structure
 
-import Square
-from bruker3 import DatasetDiffractPlusV3
+import XrdAnalysis
+from XrdAnalysis import Square
+from XrdAnalysis.bruker3 import DatasetDiffractPlusV3
 
 __author__ = 'Ang ZHOU (azhou@insa-rennes.fr)'
 __project__ = 'XrdAnalysis'
+
+
+class Material(object):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self):
+        pass
+
+
+class GaP(Material):
+    def __init__(self):
+        super(GaP, self).__init__()
+        self.hkl = {
+            "0 0 2": 32,
+            "0 0 4": 68,
+            "0 0 6": 115,
+            "-2 -2 4": 87
+        }
 
 
 class PrintLogDecorator(object):
@@ -50,12 +69,11 @@ class XrdScan(object):
         self.scan_dict = {}
 
     def save_config(self):
-        directory = self.scan_dict['directory']
         config = configparser.ConfigParser()
         config.add_section('db')
         [config.set('db', key, self.scan_dict[key]) for key
          in self.scan_dict.keys()]
-        path = os.path.join(directory, 'config.ini')
+        path = 'config.ini'
         with open(path, 'w') as configfile:
             config.write(configfile)
         del config
@@ -68,24 +86,63 @@ class XrdScan(object):
                  value
                  if (re.match('\d', j) or j.startswith("-"))]
                 for value in data_list[1:]
-                ]
+            ]
         )
         return data
 
     @staticmethod
     def one_d_data(data_list, key_word):
-        data = np.asanyarray(
+        data = np.asarray(
             [
                 [float(j.split('=')[1]) for j
                  in value if j.startswith(key_word)]
                 for value in data_list[1:]
-                ]
+            ]
         )
         return data
 
     @abc.abstractmethod
     def stack_raw_data(cls, data_list):
         pass
+
+    @staticmethod
+    def render(template_path, context):
+        try:
+            import jinja2
+        except ImportError:
+            jinja2 = None
+            return ''
+        else:
+            path, filename = os.path.split(template_path)
+            result_str = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(path or './')
+            ).get_template(filename).render(context)
+            return result_str
+
+    def dp_sv_con_fig(self, label, is_show, is_save, **param):
+        sample_name_str = self.scan_dict['sample']
+        plt.title(sample_name_str + " " + label + "\n")
+        self.save_config()
+
+        if is_show:
+            plt.show()
+
+        if is_save:
+            if "save_name" not in param:
+                fig_file_name = os.path.join(
+                    sample_name_str + '_' + label + '.png')
+            else:
+                fig_file_name = param['save_name']
+            logging.info("Saving figure file to {0}".format(fig_file_name))
+            plt.savefig(
+                fig_file_name,
+                dpi=200,
+                bbox_inches='tight')
+            return fig_file_name
+
+    @abc.abstractmethod
+    def plot(self):
+        return NotImplementedError
 
 
 class DetectorScan(XrdScan):
@@ -103,119 +160,16 @@ class DetectorScan(XrdScan):
     def get_max(self):
         return np.max(self.data_dict['int_data'])
 
+    def plot(self):
+        plt.plot(self.data_dict['two_theta_data'],
+                 self.data_dict['int_data'])
+
+        self.dp_sv_con_fig('Detector', is_save=0, is_show=1)
+
 
 class TwoDScan(XrdScan):
     def __init__(self):
         super(TwoDScan, self).__init__()
-
-    def stack_raw_data(self, data_list):
-        phi_data_matrix = self.two_d_data(data_list, 0)
-        int_data_matrix = (self.two_d_data(data_list, 1) /
-                           self.one_d_data(data_list, '_STEPTIME'))
-        khi_data_matrix = self.one_d_data(data_list, '_KHI')
-        self.data_dict = {
-            'int_data': int_data_matrix,
-            'phi_data': phi_data_matrix,
-            'khi_data': khi_data_matrix
-        }
-
-        return self.data_dict
-
-    def display_save_image(self, label, is_show, is_save):
-        sample_name_str = self.scan_dict['sample']
-        plt.title(sample_name_str + " " + label + "\n")
-
-        if is_show:
-            plt.show()
-
-        figure_file_name = os.path.join(
-            self.scan_dict['directory'],
-            sample_name_str + '_' + label + '.png'
-        )
-
-        if is_save:
-            logging.info(
-                "Saving figure file to {0}".format(figure_file_name))
-            plt.savefig(
-                figure_file_name,
-                dpi=200,
-                bbox_inches='tight')
-
-        self.save_config()
-
-    # @staticmethod
-    # def add_color_bar(im, aspect=20, pad_fraction=0.5, **kwargs):
-    #     """Add a vertical color bar to an image plot."""
-    #     from mpl_toolkits import axes_grid1
-    #
-    #     divider = axes_grid1.make_axes_locatable(im.axes)
-    #     width = axes_grid1.axes_size.AxesY(im.axes, aspect=1 / aspect)
-    #     pad = axes_grid1.axes_size.Fraction(pad_fraction, width)
-    #     current_ax = plt.gca()
-    #     cax = divider.append_axes("right", size=width, pad=pad)
-    #     plt.sca(current_ax)
-    #     return im.axes.figure.colorbar(im, cax=cax, **kwargs)
-
-    @PrintLogDecorator()
-    def plot(self, is_save=1, is_show=0):
-        plot_data_dict = self.data_dict.copy()
-        scan_dict = self.scan_dict.copy()
-        v_max = int(scan_dict['v_max'])
-        v_min = int(scan_dict['v_min'])
-        ver_min = plot_data_dict['phi_data'][0, :][0]
-        ver_max = plot_data_dict['phi_data'][0, :][-1]
-        hor_min = plot_data_dict['khi_data'][0]
-        hor_max = plot_data_dict['khi_data'][-1]
-
-        ax2d = plt.gca()
-        im = ax2d.imshow(
-            plot_data_dict['int_data'],
-            origin="lower",
-            norm=LogNorm(vmin=v_min, vmax=v_max),
-            extent=[ver_min, ver_max, hor_min, hor_max]
-        )
-        ax2d.tick_params(axis='both', which='major', labelsize=10)
-
-        ticks = np.logspace(1, np.log10(v_max), np.log10(v_max))
-        plt.colorbar(im, fraction=0.012, pad=0.04,
-                     format="%.e", extend='max', ticks=ticks)
-
-        self.display_save_image('2D', is_show, is_save)
-
-    @PrintLogDecorator()
-    def polar_plot(self, is_save=1, is_show=0):
-        """
-        Plot polar figure
-        :param is_save: if save the image.
-        :param is_show: if show the image.
-        :return:
-        """
-        scan_dict = self.scan_dict.copy()
-        plot_data_dict = self.data_dict.copy()
-        plot_data_dict['phi_data'] = np.radians(
-            plot_data_dict['phi_data'] +
-            [float(scan_dict['phi_offset'])]
-        )
-
-        fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-        ax.tick_params(axis="y", labelsize=15, labelcolor="white")
-        ax.tick_params(axis="x", labelsize=15)
-        ax.set_rmin(0.)
-
-        [xx, yy] = np.meshgrid(plot_data_dict['phi_data'][0, :].T,
-                               plot_data_dict['khi_data'])
-        v_max = int(scan_dict['v_max'])
-        v_min = int(scan_dict['v_min'])
-        im = ax.pcolormesh(xx, yy, plot_data_dict['int_data'],
-                           norm=LogNorm(vmin=v_min, vmax=v_max))
-        ax.grid(color="white")
-
-        ax = plt.gca()
-        ax.tick_params(axis='both', which='major', labelsize=16)
-
-        ticks = np.logspace(0, np.log10(v_max), np.log10(v_max) + 1)
-        plt.colorbar(im, pad=0.1, format="%.e", extend='max', ticks=ticks)
-        self.display_save_image('Polar', is_show, is_save)
 
     @staticmethod
     def correction(chi, thickness):
@@ -282,25 +236,25 @@ class TwoDScan(XrdScan):
         index = np.asarray(np.where(local_max))
         ft_index_list = [
             [i, j] for (i, j) in zip(index[0, :], index[1, :])
-            ]
+        ]
 
         chi_threshold = 40
         ft_index_list = [
             i for i in ft_index_list if i[0] < chi_threshold
-            ]
+        ]
 
         in_sq_instance_list = [
             Square.Square(
                 i, [10, 10], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
             ) for i in ft_index_list
-            ]
+        ]
         ot_sq_instance_list = [
             Square.Square(
                 i, [20, 20], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
             ) for i in ft_index_list
-            ]
+        ]
         int_list = [i - k for (i, k)
                     in zip(in_sq_instance_list, ot_sq_instance_list)]
         ft_index_list = [x for (y, x) in sorted(
@@ -310,8 +264,85 @@ class TwoDScan(XrdScan):
 
         return ft_index_list
 
+    def stack_raw_data(self, data_list):
+        phi_data_matrix = self.two_d_data(data_list, 0)
+        int_data_matrix = (self.two_d_data(data_list, 1) /
+                           self.one_d_data(data_list, '_STEPTIME'))
+        khi_data_matrix = self.one_d_data(data_list, '_KHI')
+        self.data_dict = {
+            'int_data': int_data_matrix,
+            'phi_data': phi_data_matrix,
+            'khi_data': khi_data_matrix
+        }
+
+        return self.data_dict
+
     @PrintLogDecorator()
-    def plot_square(self, is_save=1, is_show=0, is_plot=1,**param):
+    def plot(self, is_save=1, is_show=0, **param):
+        plot_data_dict = self.data_dict.copy()
+        scan_dict = self.scan_dict.copy()
+        v_max = int(scan_dict['v_max'])
+        v_min = int(scan_dict['v_min'])
+        ver_min = plot_data_dict['phi_data'][0, :][0]
+        ver_max = plot_data_dict['phi_data'][0, :][-1]
+        hor_min = plot_data_dict['khi_data'][0]
+        hor_max = plot_data_dict['khi_data'][-1]
+
+        ax2d = plt.gca()
+        im = ax2d.imshow(
+            plot_data_dict['int_data'],
+            origin="lower",
+            norm=LogNorm(vmin=v_min, vmax=v_max),
+            extent=[ver_min, ver_max, hor_min, hor_max]
+        )
+        ax2d.tick_params(axis='both', which='major', labelsize=10)
+
+        ticks = np.logspace(1, np.log10(v_max), np.log10(v_max))
+        plt.colorbar(im, fraction=0.012, pad=0.04,
+                     format="%.e", extend='max', ticks=ticks)
+
+        fig_file_name = self.dp_sv_con_fig('2D', is_show, is_save, **param)
+        return fig_file_name
+
+    @PrintLogDecorator()
+    def polar_plot(self, is_save=1, is_show=0, **param):
+        """
+        Plot polar figure
+        :param is_save: if save the image.
+        :param is_show: if show the image.
+        :return:
+        """
+        scan_dict = self.scan_dict.copy()
+        plot_data_dict = self.data_dict.copy()
+        plot_data_dict['phi_data'] = np.radians(
+            plot_data_dict['phi_data'] +
+            [float(scan_dict['phi_offset'])]
+        )
+
+        fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+        ax.tick_params(axis="y", labelsize=15, labelcolor="white")
+        ax.tick_params(axis="x", labelsize=15)
+        ax.set_rmin(0.)
+
+        [xx, yy] = np.meshgrid(plot_data_dict['phi_data'][0, :].T,
+                               plot_data_dict['khi_data'])
+        v_max = int(scan_dict['v_max'])
+        v_min = int(scan_dict['v_min'])
+        im = ax.pcolormesh(xx, yy, plot_data_dict['int_data'],
+                           norm=LogNorm(vmin=v_min, vmax=v_max))
+        ax.grid(color="white")
+
+        ax = plt.gca()
+        ax.tick_params(axis='both', which='major', labelsize=16)
+
+        ticks = np.logspace(0, np.log10(v_max), np.log10(v_max) + 1)
+        plt.colorbar(im, pad=0.1, format="%.e", extend='max', ticks=ticks)
+        fig_file_name = self.dp_sv_con_fig('Polar', is_show, is_save, **param)
+
+        return fig_file_name
+
+    @PrintLogDecorator()
+    def plot_square(self, is_save=1, is_show=0, is_plot=1, **param):
         int_data_matrix = self.data_dict['int_data']
         scan_dict = self.scan_dict.copy()
 
@@ -330,21 +361,23 @@ class TwoDScan(XrdScan):
                 i, size_list, int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max]))
             for i in index_list
-            ]
+        ]
         ot_sq_instance_list = [
             Square.Square(
                 i, [i + 4 for i in size_list], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max]))
             for i in index_list
-            ]
+        ]
         square_instances = in_sq_instance_list + ot_sq_instance_list
         [i.draw() for i in square_instances if is_plot]
 
         peak_net_intensity_matrix = np.asarray([
-            i - k for (i, k) in zip(in_sq_instance_list, ot_sq_instance_list)
-            ])
+            i - k for (i, k) in
+            zip(in_sq_instance_list,
+                ot_sq_instance_list)
+        ])
 
-        self.display_save_image('Measurement', is_show, is_save)
+        fig_name = self.dp_sv_con_fig('Measurement', is_show, is_save, **param)
 
         logging.info("Net Peak intensity for each peak is {0}".format(
             peak_net_intensity_matrix
@@ -354,7 +387,9 @@ class TwoDScan(XrdScan):
         result_dict = {
             'peak_intensity_matrix': peak_net_intensity_matrix,
             'index': index_list,
-            'square_instances': square_instances}
+            'square_instances': square_instances,
+            'fig_file_name': fig_name
+        }
 
         return result_dict
 
@@ -388,34 +423,66 @@ class TwoDScan(XrdScan):
         return peak_net_intensity_matrix
 
     @PrintLogDecorator()
-    def print_result_csv(self, peak_intensity_matrix):
+    def print_result_csv(self, peak_int_matrix):
         scan_dict = self.scan_dict.copy()
 
-        directory = scan_dict['directory']
         sample_name = scan_dict['sample']
 
         mt_table_file = os.path.join(
-            directory,
             '{0}_result.csv'.format(sample_name)
         )
         import csv
         with open(mt_table_file, 'w') as tableTeX:
             spam_writer = csv.writer(tableTeX, dialect='excel')
             spam_writer.writerow(['MT-A', 'MT-D', 'MT-C', 'MT-B'])
-            spam_writer.writerow(peak_intensity_matrix)
+            spam_writer.writerow(peak_int_matrix)
 
-        return  peak_intensity_matrix
+        return mt_table_file
+
+    @PrintLogDecorator()
+    def print_result_tex(self):
+        plt.clf()
+
+        class_path = os.path.dirname(XrdAnalysis.__file__)
+        self.plot(is_save=0)
+        res_dict = self.plot_square()
+        fig_name = os.path.normcase(res_dict['fig_file_name'])
+        peak_int_matrix = self.mt_intensity_to_fraction(res_dict)
+        scan_dict = self.scan_dict.copy()
+        rounded_int_list = np.around(peak_int_matrix, decimals=2).tolist()
+        peak_int_list = (
+            ['Intensity'] +
+            [str(i) for i in rounded_int_list] +
+            [str(np.round(sum(rounded_int_list)))]
+        )
+
+        tmp_file = os.path.join(class_path, 'templates', 'xrdtmp.tex')
+        mt_dict = {'mt': peak_int_list,
+                   'sr_int': float(scan_dict['beam_intensity']),
+                   'mt_fig': fig_name}
+        mt_v_fraction_data_str = self.render(tmp_file, mt_dict)
+
+        return mt_v_fraction_data_str
 
 
 class RsmScan(XrdScan):
     def __init__(self):
         super(RsmScan, self).__init__()
 
+    @staticmethod
+    def fill_array(array):
+        array = np.asanyarray([i for i in array if i is not []])
+        return array
+
     def stack_raw_data(self, data_list):
         phi_data_matrix = self.one_d_data(data_list, '_PHI')
         omega_data_matrix = self.one_d_data(data_list, '_OMEGA')
         int_data_matrix = self.two_d_data(data_list, 1)
         two_theta_data_matrix = self.two_d_data(data_list, 0)
+
+        int_data_matrix = self.fill_array(int_data_matrix)
+        two_theta_data_matrix = self.fill_array(two_theta_data_matrix)
+
         self.data_dict = {
             'int_data': int_data_matrix,
             'phi_data': phi_data_matrix,
@@ -424,6 +491,99 @@ class RsmScan(XrdScan):
         }
 
         return self.data_dict
+
+    @staticmethod
+    def set_plt_style_plane():
+        ax = plt.gca()
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+
+        ax.get_xaxis().tick_bottom()
+        ax.get_yaxis().tick_left()
+
+        ax.tick_params(
+            axis="both", which="both", bottom="off", top="off",
+            labelbottom="on",
+            left="off", right="off", labelleft="on")
+
+        xlabel = r'$S_x (nm^{-1})$'
+        ylabel = r'$S_z (nm^{-1})$'
+        ax.set_xlabel(xlabel, fontsize=14)
+        ax.set_ylabel(ylabel, fontsize=14)
+        # ax.set_title('RSM', fontsize=14)
+
+        ax.set_aspect('auto')
+
+    def plot(self, is_save=1, is_show=0, **param):
+        tth = self.data_dict['two_theta_data']
+        phi = self.data_dict['phi_data'][0]
+        omega = self.data_dict['omega_data']
+        int_data = self.data_dict['int_data']
+        wavelength_dict = {'Cu-1': 0.154055911278}
+        material_class_dict = {'GaP': GaP}
+
+        lam = wavelength_dict['Cu-1']
+        mt_ins = material_class_dict['GaP']()
+        hkl = [i for i in list(mt_ins.hkl.keys())
+               if mt_ins.hkl[i] - 3 <= tth[0][0] <= mt_ins.hkl[i] + 3]
+        if len(hkl) is not 1:
+            logging.error('HKL Value Error')
+            hkl = "0 0 0"
+        else:
+            hkl = hkl[0]
+            self.scan_dict['hkl'] = hkl
+
+        s_mod = 2. / lam * np.sin(np.radians(tth / 2.))
+        psi = omega - tth / 2.
+        s_x = s_mod * np.sin(np.radians(psi))
+        s_z = s_mod * np.cos(np.radians(psi))
+        w, l = int_data.shape
+
+        if (phi > -2) and (phi < 2):
+            s_x = -s_x
+
+        fig, ax = plt.subplots()
+
+        xi = np.linspace(s_x.min(), s_x.max(), w)
+        yi = np.linspace(s_z.min(), s_z.max(), l)
+        xi, yi = np.meshgrid(xi, yi)
+        zi = griddata((s_x.flatten(), s_z.flatten()), int_data.flatten(),
+                      (xi, yi), method='linear')
+
+        im = plt.imshow(
+            zi,
+            origin='lower',
+            norm=LogNorm(vmin=int_data.min() + 1, vmax=int_data.max()),
+            extent=[s_x.min(), s_x.max(), s_z.min(), s_z.max()]
+        )
+
+        self.set_plt_style_plane()
+
+        cb = fig.colorbar(im, ax=ax, extend='max')
+        cb.set_label(
+            r'$Intensity\ (Counts\ per\ second)$',
+            fontsize=14)
+
+        label = hkl + ' RSM'
+        fig_name = self.dp_sv_con_fig(label, is_show, is_save, **param)
+
+        return fig_name
+
+    def print_result_tex(self):
+        class_path = os.path.dirname(XrdAnalysis.__file__)
+        fig_name = self.plot()
+        fig_name = os.path.normcase(fig_name)
+        scan_dict = self.scan_dict.copy()
+
+        tmp_file = os.path.join(class_path, 'templates', 'rsmtmp.tex')
+        rsm_dict = {'fig_name': scan_dict['hkl'],
+                    'rsm_fig': fig_name}
+        txt_str = self.render(tmp_file, rsm_dict)
+
+        return txt_str
 
 
 class XrdFile(object):
@@ -486,7 +646,7 @@ class RawFile(XrdFile):
         return data_list
 
     @staticmethod
-    def read_config_file(raw_file):
+    def read_config_file(raw_file, is_ignore_intensity=0):
         def guess_sample_name(raw_file_path):
             try:
                 sample_name = (
@@ -498,25 +658,25 @@ class RawFile(XrdFile):
                 )
             except FileNotFoundError:
                 print("Error, no sample name.")
-                return ''
+                return 'sample'
             else:
                 if sample_name:
                     sample_name = sample_name[-1]
-                return sample_name
+                    return sample_name
+                else:
+                    return 'sample'
 
-        def beam_intensity(directory):
+        def beam_intensity():
             logging.info("Starts calculation beam intensity.")
 
-            source_file_list = [
-                os.path.join(directory, 'beam1mm.raw'),
-                os.path.join(directory, 'beam8mm.raw')]
+            source_file_list = ['beam1mm.raw', 'beam8mm.raw']
             beam_int_list = [
                 (RawFile(i).read_data().get_max() * 8940)
                 for i in source_file_list if os.path.isfile(i)]
 
             if not beam_int_list:
                 logging.warning("Could not found default beam intensity files")
-                beam_df_int = 6000*8940
+                beam_df_int = 6000 * 8940
                 beam_int_list = [beam_df_int]
                 logging.info(
                     "Use default Source Beam Intensity = {0}.".format(
@@ -531,7 +691,7 @@ class RawFile(XrdFile):
 
         config = configparser.ConfigParser()
         config.read([
-            os.path.join(os.path.dirname(sys.argv[0]), 'config.ini'),
+            os.path.join(os.path.dirname(XrdAnalysis.__file__), 'config.ini'),
             os.path.join(os.path.dirname(raw_file), 'config.ini')
         ])
 
@@ -539,21 +699,15 @@ class RawFile(XrdFile):
 
         config_db = config['db']
         config_db['sample'] = str(
-            config_db['sample'] or
-            guess_sample_name(raw_file)
+            guess_sample_name(raw_file) or
+            config_db['sample']
         )
-        config_db['directory'] = str(
-            config_db['directory'] or
-            os.path.dirname(raw_file)
-        )
-        config_db['raw_file'] = str(
-            config_db['raw_file'] or
-            os.path.basename(raw_file)
-        )
-        config_db['beam_intensity'] = str(
-            config_db['beam_intensity'] or
-            beam_intensity(config_db['directory'])
-        )
+        os.chdir(os.path.dirname(raw_file))
+        if not is_ignore_intensity:
+            config_db['beam_intensity'] = str(
+                config_db['beam_intensity'] or
+                beam_intensity()
+            )
 
         logging.debug(dict(config_db))
 
@@ -562,93 +716,114 @@ class RawFile(XrdFile):
     def read_data(self):
         data_list = self.__str_data(self.file)
         scan_instance = self.create_scan_instance()
-        scan_instance.stack_raw_data(data_list)
         instance_dict = self.get_scan_dict()
-        if scan_instance.__class__.__name__ == 'TwoDScan':
-            instance_dict.update(self.read_config_file(self.file))
+        if instance_dict['_TYPE'] == 'TwoDPlot':
+            instance_dict.update(
+                self.read_config_file(self.file)
+            )
+        else:
+            instance_dict.update(
+                self.read_config_file(self.file, is_ignore_intensity=1)
+            )
+
+        scan_instance.stack_raw_data(data_list)
         scan_instance.scan_dict = instance_dict
 
         logging.debug("Scan dict: {0}".format(instance_dict))
+
+        os.chdir(os.path.dirname(self.file))
 
         return scan_instance
 
 
 class H5File(XrdFile):
     def __init__(self, h5_file):
-        if not h5_file.endswith('.h5'):
+        if isinstance(h5_file, str):
+            h5_file = [h5_file, '']
+            logging.warning("Sub file name is required by access_file")
+
+        if not h5_file[0].endswith('.h5'):
             raise TypeError("Illegal h5 file name.")
+
         super(H5File, self).__init__(h5_file)
-        file_handle = h5py.File(self.file, 'a')
+
+        self.file_handle, self.h5_file_handle = self.access_file()
+
+    def access_file(self, **param):
+        h5_file_name = self.file[0]
+        if 'sub_file_name' not in param:
+            sub_file_name = self.file[1]
+        else:
+            sub_file_name = param['sub_file_name']
+
+        h5_file_handle = h5py.File(h5_file_name, 'a')
+        try:
+            file_handle = h5_file_handle[sub_file_name]
+        except KeyError:
+            logging.error("No such sub file.")
+
+        if file_handle is None:
+            logging.warning("No such file in lib.")
+
+        return file_handle, h5_file_handle
+
+    def get_scan_dict(self):
+        scan_dict = {i: self.file_handle.attrs[i]
+                     for i in self.file_handle.attrs.keys()}
+
+        return scan_dict
 
     def get_scan_type(self):
-        scan_type = self.file[1].split('/')[-1]
-        logging.info("Scan type is {0}".format(scan_type))
-        return scan_type
+        scan_type = self.file_handle.attrs.get('_TYPE')
 
-    def create_file(self):
-        with open(self.file, 'a'):
-            file_handle = h5py.File(self.file)
-        file_handle.attrs['HDF5_Version'] = h5py.version.hdf5_version
-        file_handle.attrs['h5py_version'] = h5py.version.version
+        return scan_type
 
     def read_raw(self, raw_file):
         # Require data.
-        instance = RawFile(raw_file)
-        raw_data_dict, raw_plot_dict = instance.matrix_data()
-        scan_dict = instance.get_head()
-        # Require data set.
-        file_handle = h5py.File(self.file, 'a')
-        sample_name_str = raw_plot_dict['db']['sample']
-        sample_handle = file_handle.require_group(sample_name_str)
-        lr_handle = sample_handle.require_group(scan_dict['_TYPE'])
-        # Record data.
-        for key, value in raw_data_dict.items():
-            if key in lr_handle:
-                del lr_handle[key]
+        instance = RawFile(raw_file).read_data()
+        sub_file_name = (
+            instance.scan_dict['sample'] +
+            '/' + os.path.basename(raw_file).split('.')[0])
+        self.h5_file_handle.close()
+        file_handle = self.h5_file_handle.require_group(sub_file_name)
 
-            lr_handle.create_dataset(
-                key,
-                data=value
-            )
-        for key, value in scan_dict.items():
+        # Record data.
+        data_dict = instance.data_dict.copy()
+        for key in data_dict.keys():
             try:
-                lr_handle.attrs.modify(key, value)
+                del file_handle[key]
+            except (TypeError, KeyError):
+                pass
+            file_handle.create_dataset(
+                key,
+                data=data_dict[key]
+            )
+        scan_dict = instance.scan_dict.copy()
+        for key in scan_dict.keys():
+            try:
+                file_handle.attrs.modify(key, scan_dict[key])
             except TypeError:
                 pass
-        if raw_plot_dict:
-            for key, value in raw_plot_dict['db'].items():
-                try:
-                    lr_handle.attrs.modify(key, value)
-                except TypeError:
-                    pass
-        # Close data set.
-        file_handle.close()
 
-    def matrix_data(self):
-        pass
+                # Close data set.
+
+    def read_data(self):
+        scan_instance = self.create_scan_instance()
+        data_set = self.file_handle.items()
+
+        scan_instance.data_dict = {i[0]: np.asarray(i[1])for i in data_set}
+        scan_instance.scan_dict = self.get_scan_dict()
+
+        logging.debug("Scan dict: {0}".format(scan_instance.scan_dict))
+
+        return scan_instance
+
+    def __del__(self):
+        self.h5_file_handle.close()
 
 
-if __name__ == '__main__':
-    logging.basicConfig(
-        # filename=os.path.join(
-        #     os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-    )
-    from tkinter import Tk
-    from tkinter.filedialog import askopenfilename
-
-    Tk().withdraw()
-    raw_file_name = askopenfilename(
-        title='Choose Poles Figure File...',
-        filetypes=[("Raw files", "*.raw")]
-    )
-    logging.info("File {0} was chosen.".format(raw_file_name))
-    if raw_file_name:
-        sample = RawFile()
-        data_dict, plot_dict = sample.matrix_data(raw_file_name)
-        print(data_dict)
-    logging.info(
-        "Finished!\n"
-        "--------------------------------------------------------------------"
-    )
+def reader(file):
+    if isinstance(file, str) and file.endswith('.raw'):
+        return RawFile(file)
+    else:
+        return H5File(file)

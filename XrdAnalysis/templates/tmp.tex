@@ -1,0 +1,17 @@
+\documentclass[10pt,a4paper]{article}
+\renewcommand*\thesubsection{\arabic{subsection}}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{placeins}
+\title{Report}
+\setlength{\parindent}{0pt}
+\begin{document}
+    \maketitle
+    \clearpage
+
+
+    {%- for p in xrd_block -%}
+    {{ p }}
+    {% endfor %}
+\end{document}

@@ -1,0 +1,16 @@
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{lccc}
+Material&Method&Temprature($^{\circ}$C)&Thickness(\AA)\\
+\hline
+{% for i in layer %}
+{{i}}
+{% endfor %}
+\end{tabular}
+\end{table}
+
+{% if comment %}
+{% for i in comment %}
+{{i}}
+{% endfor %}
+{% endif %}
