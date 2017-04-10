@@ -92,7 +92,10 @@ class PfGui(QtWidgets.QMainWindow):
             supported_file_str)
         image_file_name = str(image_file_name[0])
 
-        self.figure.savefig(image_file_name, bbox_inches='tight')
+        if image_file_name:
+            self.figure.savefig(image_file_name, bbox_inches='tight')
+        else:
+            return
 
     def save_config(self):
         with open('GUI.cfg', 'w') as config_file:

@@ -58,7 +58,7 @@ class Square(object):
 
     def remove(self):
         """
-        Remove the the square lines.
+        Remove the the square _lines.
         :return: None
         """
         axes = plt.gca()

@@ -15,28 +15,11 @@ from scipy.ndimage.morphology import generate_binary_structure
 
 import XrdAnalysis
 from XrdAnalysis import Square
+from XrdAnalysis.Materials import GaP
 from XrdAnalysis.bruker3 import DatasetDiffractPlusV3
 
 __author__ = 'Ang ZHOU (azhou@insa-rennes.fr)'
 __project__ = 'XrdAnalysis'
-
-
-class Material(object):
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self):
-        pass
-
-
-class GaP(Material):
-    def __init__(self):
-        super(GaP, self).__init__()
-        self.hkl = {
-            "0 0 2": 32,
-            "0 0 4": 68,
-            "0 0 6": 115,
-            "-2 -2 4": 87
-        }
 
 
 class PrintLogDecorator(object):
@@ -86,7 +69,7 @@ class XrdScan(object):
                  value
                  if (re.match('\d', j) or j.startswith("-"))]
                 for value in data_list[1:]
-            ]
+                ]
         )
         return data
 
@@ -97,7 +80,7 @@ class XrdScan(object):
                 [float(j.split('=')[1]) for j
                  in value if j.startswith(key_word)]
                 for value in data_list[1:]
-            ]
+                ]
         )
         return data
 
@@ -214,7 +197,7 @@ class TwoDScan(XrdScan):
             sorted_index_list = list(khi_deque)
 
             logging.debug("index list before sort:{0}".format(index_list))
-            logging.info(
+            logging.debug(
                 "index list after sort:{0}".format(sorted_index_list)
             )
             return sorted_index_list
@@ -236,25 +219,25 @@ class TwoDScan(XrdScan):
         index = np.asarray(np.where(local_max))
         ft_index_list = [
             [i, j] for (i, j) in zip(index[0, :], index[1, :])
-        ]
+            ]
 
         chi_threshold = 40
         ft_index_list = [
             i for i in ft_index_list if i[0] < chi_threshold
-        ]
+            ]
 
         in_sq_instance_list = [
             Square.Square(
                 i, [10, 10], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
             ) for i in ft_index_list
-        ]
+            ]
         ot_sq_instance_list = [
             Square.Square(
                 i, [20, 20], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
             ) for i in ft_index_list
-        ]
+            ]
         int_list = [i - k for (i, k)
                     in zip(in_sq_instance_list, ot_sq_instance_list)]
         ft_index_list = [x for (y, x) in sorted(
@@ -361,25 +344,25 @@ class TwoDScan(XrdScan):
                 i, size_list, int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max]))
             for i in index_list
-        ]
+            ]
         ot_sq_instance_list = [
             Square.Square(
                 i, [i + 4 for i in size_list], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max]))
             for i in index_list
-        ]
+            ]
         square_instances = in_sq_instance_list + ot_sq_instance_list
         [i.draw() for i in square_instances if is_plot]
 
         peak_net_intensity_matrix = np.asarray([
-            i - k for (i, k) in
-            zip(in_sq_instance_list,
-                ot_sq_instance_list)
-        ])
+                                                   i - k for (i, k) in
+                                                   zip(in_sq_instance_list,
+                                                       ot_sq_instance_list)
+                                                   ])
 
         fig_name = self.dp_sv_con_fig('Measurement', is_show, is_save, **param)
 
-        logging.info("Net Peak intensity for each peak is {0}".format(
+        logging.debug("Net Peak intensity for each peak is {0}".format(
             peak_net_intensity_matrix
         ))
         logging.debug("The square size is {0}".format(size_list))
@@ -402,7 +385,7 @@ class TwoDScan(XrdScan):
 
         eta = [self.correction(x[0], thickness) for x in index_list]
 
-        logging.info("Intensity correction index eta is {0}".format(eta))
+        logging.debug("Intensity correction index eta is {0}".format(eta))
 
         coefficient_list = np.asarray([
             0.939691064,
@@ -417,8 +400,8 @@ class TwoDScan(XrdScan):
             beam_intensity_float
         )
 
-        logging.info("Sample thickness is {0}\n".format(thickness))
-        logging.info("Peak intensity is {0}".format(peak_net_intensity_matrix))
+        logging.debug("Sample thickness is {0}\n".format(thickness))
+        logging.debug("Peak intensity is {0}".format(peak_net_intensity_matrix))
 
         return peak_net_intensity_matrix
 
@@ -509,10 +492,10 @@ class RsmScan(XrdScan):
             labelbottom="on",
             left="off", right="off", labelleft="on")
 
-        xlabel = r'$S_x (nm^{-1})$'
-        ylabel = r'$S_z (nm^{-1})$'
-        ax.set_xlabel(xlabel, fontsize=14)
-        ax.set_ylabel(ylabel, fontsize=14)
+        x_label = r'$S_x (nm^{-1})$'
+        y_label = r'$S_z (nm^{-1})$'
+        ax.set_xlabel(x_label, fontsize=14)
+        ax.set_ylabel(y_label, fontsize=14)
         # ax.set_title('RSM', fontsize=14)
 
         ax.set_aspect('auto')
@@ -545,13 +528,13 @@ class RsmScan(XrdScan):
         if (phi > -2) and (phi < 2):
             s_x = -s_x
 
-        fig, ax = plt.subplots()
+        ax = plt.gca()
 
         xi = np.linspace(s_x.min(), s_x.max(), w)
         yi = np.linspace(s_z.min(), s_z.max(), l)
-        xi, yi = np.meshgrid(xi, yi)
+        xx, yy = np.meshgrid(xi, yi)
         zi = griddata((s_x.flatten(), s_z.flatten()), int_data.flatten(),
-                      (xi, yi), method='linear')
+                      (xx, yy), method='linear')
 
         im = plt.imshow(
             zi,
@@ -562,7 +545,7 @@ class RsmScan(XrdScan):
 
         self.set_plt_style_plane()
 
-        cb = fig.colorbar(im, ax=ax, extend='max')
+        cb = plt.colorbar(im, ax=ax, extend='max')
         cb.set_label(
             r'$Intensity\ (Counts\ per\ second)$',
             fontsize=14)
@@ -570,7 +553,94 @@ class RsmScan(XrdScan):
         label = hkl + ' RSM'
         fig_name = self.dp_sv_con_fig(label, is_show, is_save, **param)
 
+        self.data_dict['xi'] = xi
+        self.data_dict['yi'] = yi
+        self.data_dict['s_data'] = zi
+
         return fig_name
+
+    @staticmethod
+    def int_to_coor(axis, ind):
+        coor = int(np.argmin(np.abs(axis-ind)))
+
+        return coor
+
+    @PrintLogDecorator()
+    def plot_cross_area(self, event, width):
+        if 'xi' not in self.data_dict:
+            raise KeyError("Plz plot RSM first.")
+
+        xi = self.data_dict['xi']
+        yi = self.data_dict['yi']
+        s_data = self.data_dict['s_data']
+
+        (x_dt, y_dt) = event[0]
+        x_min_dt = x_dt - width/2
+        y_min_dt = y_dt - width/2
+        x_max_dt = x_dt + width/2
+        y_max_dt = y_dt + width/2
+
+        [x, x_min, x_max] = [
+            self.int_to_coor(xi, i) for i in [x_dt, x_min_dt, x_max_dt]]
+        [y, y_min, y_max] = [
+            self.int_to_coor(yi, i) for i in [y_dt, y_min_dt, y_max_dt]]
+
+        h_lines, = plt.plot([x_min_dt, x_max_dt, x_max_dt, x_min_dt, x_min_dt],
+                            [yi.min(), yi.min(), yi.max(), yi.max(), yi.min()])
+
+        v_lines, = plt.plot([xi.min(), xi.min(), xi.max(), xi.max(), xi.min()],
+                            [y_max_dt, y_min_dt, y_min_dt, y_max_dt, y_max_dt])
+
+        if width<1e-10:
+            data_x = s_data[y, :]
+            data_y = s_data[:, x]
+        else:
+            data_x = np.sum(s_data[y_min:y_max, :], axis=0)
+            data_y = np.sum(s_data[:, x_min:x_max], axis=1)
+
+        return [h_lines, v_lines], [(yi, data_y), (xi, data_x)]
+
+    @PrintLogDecorator()
+    def plot_ab_area(self, event, width):
+        if 'xi' not in self.data_dict:
+            raise KeyError("Plz plot RSM first.")
+
+        xi = self.data_dict['xi']
+        yi = self.data_dict['yi']
+        s_data = self.data_dict['s_data']
+
+        (x0_data, y0_data) = event[0]
+        (x_data, y_data) = event[1]
+        [x0, x] = [self.int_to_coor(xi, i) for i in [x0_data, x_data]]
+        [y0, y] = [self.int_to_coor(yi, i) for i in [y0_data, y_data]]
+
+        if width < 1e-10:
+            num = int(np.hypot(x - x0, y - y0))
+            y_coor = np.linspace(y0_data, y_data, num)
+            xp, yp = np.linspace(x0, x, num), np.linspace(y0, y, num)
+            z_data = np.transpose(s_data)[xp.astype(np.int), yp.astype(np.int)]
+
+            lines, = plt.plot([x0_data, x_data], [y0_data, y_data])
+        else:
+            hf_wd_pi = abs(
+                self.int_to_coor(xi, x_data - width / 2) -
+                self.int_to_coor(xi, x_data))
+
+            num = int(np.hypot(x - x0, y - y0))
+            y_coor = np.linspace(y0_data, y_data, num)
+            z_data = np.zeros(num)
+            for i in range(2 * hf_wd_pi):
+                xp = np.linspace(x0-hf_wd_pi+i, x-hf_wd_pi+i, num)
+                yp = np.linspace(y0, y, num)
+                z_data += np.transpose(s_data)[xp.astype(np.int), yp.astype(np.int)]
+
+            lines, = plt.plot(
+                [x0_data - width/2, x0_data + width/2,
+                 x_data + width/2, x_data - width/2, x0_data - width/2],
+                [y0_data, y0_data, y_data, y_data, y0_data]
+            )
+
+        return [lines], [(y_coor, z_data)]
 
     def print_result_tex(self):
         class_path = os.path.dirname(XrdAnalysis.__file__)
@@ -609,7 +679,7 @@ class XrdFile(object):
         }
         scan_instance = scan_type_dict[scan_type]()
 
-        logging.info("Scan Type is {0}".format(scan_type))
+        logging.debug("Scan Type is {0}".format(scan_type))
 
         return scan_instance
 
@@ -666,8 +736,8 @@ class RawFile(XrdFile):
                 else:
                     return 'sample'
 
+        @PrintLogDecorator()
         def beam_intensity():
-            logging.info("Starts calculation beam intensity.")
 
             source_file_list = ['beam1mm.raw', 'beam8mm.raw']
             beam_int_list = [
@@ -685,7 +755,7 @@ class RawFile(XrdFile):
             beam_int_list = np.asarray(beam_int_list)
             beam_int = np.mean(beam_int_list)
 
-            logging.info("Beam Int is {0}".format(beam_int))
+            logging.debug("Beam Int is {0}".format(beam_int))
 
             return beam_int
 
@@ -760,10 +830,8 @@ class H5File(XrdFile):
         try:
             file_handle = h5_file_handle[sub_file_name]
         except KeyError:
+            file_handle = None
             logging.error("No such sub file.")
-
-        if file_handle is None:
-            logging.warning("No such file in lib.")
 
         return file_handle, h5_file_handle
 
@@ -811,7 +879,7 @@ class H5File(XrdFile):
         scan_instance = self.create_scan_instance()
         data_set = self.file_handle.items()
 
-        scan_instance.data_dict = {i[0]: np.asarray(i[1])for i in data_set}
+        scan_instance.data_dict = {i[0]: np.asarray(i[1]) for i in data_set}
         scan_instance.scan_dict = self.get_scan_dict()
 
         logging.debug("Scan dict: {0}".format(scan_instance.scan_dict))
