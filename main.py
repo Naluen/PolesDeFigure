@@ -107,12 +107,18 @@ class PfGui(QtWidgets.QMainWindow):
             for i in self.results['square_instances']:
                 i.remove()
 
-        results = self.instance.plot_square(is_show=0, is_save=0)
-        self.results = results
+        results_dict = self.instance.plot_square(is_show=0, is_save=0)
+        self.results = results_dict
         self.canvas.draw()
 
-        results = self.instance.mt_intensity_to_fraction(results)
-        self.update_fraction_list(results)
+        v_fration = self.instance.mt_intensity_to_fraction(results_dict)
+        data_dict = {
+            'Peak Intensity': results_dict['peak_intensity_matrix'],
+            'Volume Fraction': v_fration
+        }
+        self.instance.print_result_csv(
+            self.instance.scan_dict['sample'], data_dict)
+        self.update_fraction_list(v_fration)
 
     def connect_canvas(self):
         self.cid_press = self.canvas.mpl_connect(
@@ -173,7 +179,12 @@ class PfGui(QtWidgets.QMainWindow):
             outer_index_list=outer_index_list
         )
         results = self.instance.mt_intensity_to_fraction(results_dict)
-        self.instance.print_result_csv(results)
+        data_dict = {
+            'Peak Intensity': results_dict['peak_intensity_matrix'],
+            'Volume Fraction': results
+        }
+        self.instance.print_result_csv(
+            self.instance.scan_dict['sample'], data_dict)
         self.update_fraction_list(results)
 
     def disconnect(self):

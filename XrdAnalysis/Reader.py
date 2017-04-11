@@ -379,7 +379,7 @@ class TwoDScan(XrdScan):
     def mt_intensity_to_fraction(self, result):
         scan_dict = self.scan_dict.copy()
         index_list = result['index']
-        peak_net_intensity_matrix = result['peak_intensity_matrix']
+        peak_intensity_matrix = result['peak_intensity_matrix']
         thickness = float(scan_dict['thickness'] or 900)
         beam_intensity_float = float(scan_dict['beam_intensity'])
 
@@ -393,39 +393,35 @@ class TwoDScan(XrdScan):
             0.426843274 / (eta[2] / eta[0]),
             0.72278158 / (eta[3] / eta[0])
         ])
-        peak_net_intensity_matrix = (
-            peak_net_intensity_matrix *
+        volume_fraction_matrix = (
+            peak_intensity_matrix *
             10000 *
             coefficient_list /
             beam_intensity_float
         )
 
         logging.debug("Sample thickness is {0}\n".format(thickness))
-        logging.debug("Peak intensity is {0}".format(peak_net_intensity_matrix))
+        logging.debug("Peak intensity is {0}".format(volume_fraction_matrix))
 
-        return peak_net_intensity_matrix
+        return volume_fraction_matrix
 
-    @PrintLogDecorator()
-    def print_result_csv(self, peak_int_matrix):
-        scan_dict = self.scan_dict.copy()
-
-        sample_name = scan_dict['sample']
-
+    @staticmethod
+    def print_result_csv(sample_name, data_dict):
         mt_table_file = os.path.join(
             '{0}_result.csv'.format(sample_name)
         )
         import csv
         with open(mt_table_file, 'w') as tableTeX:
             spam_writer = csv.writer(tableTeX, dialect='excel')
-            spam_writer.writerow(['MT-A', 'MT-D', 'MT-C', 'MT-B'])
-            spam_writer.writerow(peak_int_matrix)
+            spam_writer.writerow(['MT','MT-A', 'MT-D', 'MT-C', 'MT-B'])
+            for i in data_dict.keys():
+                spam_writer.writerow([i] + data_dict[i].tolist())
 
         return mt_table_file
 
     @PrintLogDecorator()
     def print_result_tex(self):
         plt.clf()
-
         class_path = os.path.dirname(XrdAnalysis.__file__)
         self.plot(is_save=0)
         res_dict = self.plot_square()
