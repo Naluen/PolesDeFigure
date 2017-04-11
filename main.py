@@ -98,7 +98,8 @@ class PfGui(QtWidgets.QMainWindow):
             return
 
     def save_config(self):
-        with open('GUI.cfg', 'w') as config_file:
+        script_path = os.path.dirname(sys.argv[0])
+        with open(os.path.join(script_path, 'GUI.cfg'), 'w') as config_file:
             self.gui_cfg.write(config_file)
 
     def automatically_detect_peak(self):

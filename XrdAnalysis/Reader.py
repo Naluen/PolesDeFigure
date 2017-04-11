@@ -738,7 +738,6 @@ class RawFile(XrdFile):
 
         @PrintLogDecorator()
         def beam_intensity():
-
             source_file_list = ['beam1mm.raw', 'beam8mm.raw']
             beam_int_list = [
                 (RawFile(i).read_data().get_max() * 8940)
@@ -772,7 +771,6 @@ class RawFile(XrdFile):
             guess_sample_name(raw_file) or
             config_db['sample']
         )
-        os.chdir(os.path.dirname(raw_file))
         if not is_ignore_intensity:
             config_db['beam_intensity'] = str(
                 config_db['beam_intensity'] or
@@ -784,6 +782,7 @@ class RawFile(XrdFile):
         return config_db
 
     def read_data(self):
+        os.chdir(os.path.dirname(os.path.abspath(self.file)))
         data_list = self.__str_data(self.file)
         scan_instance = self.create_scan_instance()
         instance_dict = self.get_scan_dict()
@@ -800,8 +799,6 @@ class RawFile(XrdFile):
         scan_instance.scan_dict = instance_dict
 
         logging.debug("Scan dict: {0}".format(instance_dict))
-
-        os.chdir(os.path.dirname(self.file))
 
         return scan_instance
 
