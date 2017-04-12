@@ -51,16 +51,6 @@ class XrdScan(object):
         self.data_dict = {}
         self.scan_dict = {}
 
-    def save_config(self):
-        config = configparser.ConfigParser()
-        config.add_section('db')
-        [config.set('db', key, self.scan_dict[key]) for key
-         in self.scan_dict.keys()]
-        path = 'config.ini'
-        with open(path, 'w') as configfile:
-            config.write(configfile)
-        del config
-
     @staticmethod
     def two_d_data(data_list, index):
         data = np.asanyarray(
@@ -105,7 +95,6 @@ class XrdScan(object):
     def dp_sv_con_fig(self, label, is_show, is_save, **param):
         sample_name_str = self.scan_dict['sample']
         plt.title(sample_name_str + " " + label + "\n")
-        self.save_config()
 
         if is_show:
             plt.show()
@@ -166,16 +155,16 @@ class TwoDScan(XrdScan):
             np.arccos(
                 np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(omega))))
         offset = e_angle - i_angle
-        eta = 1. / 37.6152  # 1/um at 8.05keV (CXRO)
+        mu = 1. / 37.6152  # 1/um at 8.05keV (CXRO)
         p = np.sin(np.deg2rad(e_angle + offset))
         q = np.sin(np.deg2rad(e_angle - offset))
         coefficient_b = p / (p + q)
-        coefficient_c = 1. - np.exp(-eta * thickness * (1. / p + 1. / q))
-        coefficient = coefficient_b * (1. / eta) * coefficient_c
+        coefficient_c = 1. - np.exp(-mu * thickness * (1. / p + 1. / q))
+        coefficient = coefficient_b * (1. / mu) * coefficient_c
 
         logging.debug(
-            "eta:{0}, thickness:{1}, p:{2}, q:{3}, c_c:{4}".format(
-                eta, thickness, p, q, coefficient_c
+            "mu:{0}, thickness:{1}, p:{2}, q:{3}, c_c:{4}".format(
+                mu, thickness, p, q, coefficient_c
             )
         )
         return coefficient
@@ -401,9 +390,23 @@ class TwoDScan(XrdScan):
         )
 
         logging.debug("Sample thickness is {0}\n".format(thickness))
+        logging.debug("Eta is {0}\n".format(eta))
         logging.debug("Peak intensity is {0}".format(volume_fraction_matrix))
 
         return volume_fraction_matrix
+
+    def get_bg_int(self):
+        """
+        Get the background intensity
+        :return:  background intensity.
+        """
+        size_list = [int(i) for i in self.scan_dict['square_size'].split(',')]
+        int_data = self.data_dict['int_data'].flatten()
+        u, index = np.unique(int_data, return_inverse=True)
+        av_bg_int = u[np.argmax(np.bincount(index))]
+        bg_int = av_bg_int * size_list[0] * size_list[1]
+
+        return bg_int
 
     @staticmethod
     def print_result_csv(sample_name, data_dict):
@@ -413,7 +416,7 @@ class TwoDScan(XrdScan):
         import csv
         with open(mt_table_file, 'w') as tableTeX:
             spam_writer = csv.writer(tableTeX, dialect='excel')
-            spam_writer.writerow(['MT','MT-A', 'MT-D', 'MT-C', 'MT-B'])
+            spam_writer.writerow(['MT', 'MT-A', 'MT-D', 'MT-C', 'MT-B'])
             for i in data_dict.keys():
                 spam_writer.writerow([i] + data_dict[i].tolist())
 
@@ -557,7 +560,7 @@ class RsmScan(XrdScan):
 
     @staticmethod
     def int_to_coor(axis, ind):
-        coor = int(np.argmin(np.abs(axis-ind)))
+        coor = int(np.argmin(np.abs(axis - ind)))
 
         return coor
 
@@ -571,10 +574,10 @@ class RsmScan(XrdScan):
         s_data = self.data_dict['s_data']
 
         (x_dt, y_dt) = event[0]
-        x_min_dt = x_dt - width/2
-        y_min_dt = y_dt - width/2
-        x_max_dt = x_dt + width/2
-        y_max_dt = y_dt + width/2
+        x_min_dt = x_dt - width / 2
+        y_min_dt = y_dt - width / 2
+        x_max_dt = x_dt + width / 2
+        y_max_dt = y_dt + width / 2
 
         [x, x_min, x_max] = [
             self.int_to_coor(xi, i) for i in [x_dt, x_min_dt, x_max_dt]]
@@ -587,7 +590,7 @@ class RsmScan(XrdScan):
         v_lines, = plt.plot([xi.min(), xi.min(), xi.max(), xi.max(), xi.min()],
                             [y_max_dt, y_min_dt, y_min_dt, y_max_dt, y_max_dt])
 
-        if width<1e-10:
+        if width < 1e-10:
             data_x = s_data[y, :]
             data_y = s_data[:, x]
         else:
@@ -626,13 +629,14 @@ class RsmScan(XrdScan):
             y_coor = np.linspace(y0_data, y_data, num)
             z_data = np.zeros(num)
             for i in range(2 * hf_wd_pi):
-                xp = np.linspace(x0-hf_wd_pi+i, x-hf_wd_pi+i, num)
+                xp = np.linspace(x0 - hf_wd_pi + i, x - hf_wd_pi + i, num)
                 yp = np.linspace(y0, y, num)
-                z_data += np.transpose(s_data)[xp.astype(np.int), yp.astype(np.int)]
+                z_data += np.transpose(s_data)[
+                    xp.astype(np.int), yp.astype(np.int)]
 
             lines, = plt.plot(
-                [x0_data - width/2, x0_data + width/2,
-                 x_data + width/2, x_data - width/2, x0_data - width/2],
+                [x0_data - width / 2, x0_data + width / 2,
+                 x_data + width / 2, x_data - width / 2, x0_data - width / 2],
                 [y0_data, y0_data, y_data, y_data, y0_data]
             )
 
@@ -698,6 +702,16 @@ class RawFile(XrdFile):
         scan_dict = self.get_scan_dict()
         scan_type = scan_dict['_TYPE']
         return scan_type
+
+    @staticmethod
+    def save_config(scan_dict):
+        config = configparser.ConfigParser()
+        config.add_section('db')
+        [config.set('db', key, scan_dict[key]) for key in scan_dict.keys()]
+        path = 'config.ini'
+        with open(path, 'w') as configfile:
+            config.write(configfile)
+        del config
 
     @staticmethod
     def __str_data(raw_file):
@@ -794,6 +808,8 @@ class RawFile(XrdFile):
         scan_instance.stack_raw_data(data_list)
         scan_instance.scan_dict = instance_dict
 
+        self.save_config(instance_dict)
+
         logging.debug("Scan dict: {0}".format(instance_dict))
 
         return scan_instance
@@ -884,6 +900,7 @@ class H5File(XrdFile):
 
 
 def reader(file):
+    # Factory function to process different file.
     if isinstance(file, str) and file.endswith('.raw'):
         return RawFile(file)
     else:

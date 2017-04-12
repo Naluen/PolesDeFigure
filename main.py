@@ -120,6 +120,11 @@ class PfGui(QtWidgets.QMainWindow):
             self.instance.scan_dict['sample'], data_dict)
         self.update_fraction_list(v_fration)
 
+        bg_err = (self.instance.get_bg_int()/
+                  (self.instance.get_bg_int() +
+                   results_dict['peak_intensity_matrix'].mean()))
+        self.ui.statusbar.showMessage("{0}%".format(bg_err*100))
+
     def connect_canvas(self):
         self.cid_press = self.canvas.mpl_connect(
             'button_press_event', self.on_press
