@@ -15,7 +15,7 @@ from scipy.ndimage.morphology import generate_binary_structure
 
 import XrdAnalysis
 from XrdAnalysis import Square
-from XrdAnalysis.Materials import GaP
+from XrdAnalysis.Materials import GaP, Si, AlGaP, GaPN
 from XrdAnalysis.bruker3 import DatasetDiffractPlusV3
 
 __author__ = 'Ang ZHOU (azhou@insa-rennes.fr)'
@@ -51,6 +51,16 @@ class XrdScan(object):
         self.data_dict = {}
         self.scan_dict = {}
 
+    def save_config(self):
+        config = configparser.ConfigParser()
+        config.add_section('db')
+        [config.set('db', key, self.scan_dict[key]) for key
+         in self.scan_dict.keys()]
+        path = 'config.ini'
+        with open(path, 'w') as configfile:
+            config.write(configfile)
+        del config
+
     @staticmethod
     def two_d_data(data_list, index):
         data = np.asanyarray(
@@ -59,7 +69,7 @@ class XrdScan(object):
                  value
                  if (re.match('\d', j) or j.startswith("-"))]
                 for value in data_list[1:]
-                ]
+            ]
         )
         return data
 
@@ -70,7 +80,7 @@ class XrdScan(object):
                 [float(j.split('=')[1]) for j
                  in value if j.startswith(key_word)]
                 for value in data_list[1:]
-                ]
+            ]
         )
         return data
 
@@ -95,6 +105,7 @@ class XrdScan(object):
     def dp_sv_con_fig(self, label, is_show, is_save, **param):
         sample_name_str = self.scan_dict['sample']
         plt.title(sample_name_str + " " + label + "\n")
+        self.save_config()
 
         if is_show:
             plt.show()
@@ -155,16 +166,16 @@ class TwoDScan(XrdScan):
             np.arccos(
                 np.cos(np.deg2rad(chi)) * np.sin(np.deg2rad(omega))))
         offset = e_angle - i_angle
-        mu = 1. / 37.6152  # 1/um at 8.05keV (CXRO)
+        eta = 1. / 37.6152  # 1/um at 8.05keV (CXRO)
         p = np.sin(np.deg2rad(e_angle + offset))
         q = np.sin(np.deg2rad(e_angle - offset))
         coefficient_b = p / (p + q)
-        coefficient_c = 1. - np.exp(-mu * thickness * (1. / p + 1. / q))
-        coefficient = coefficient_b * (1. / mu) * coefficient_c
+        coefficient_c = 1. - np.exp(-eta * thickness * (1. / p + 1. / q))
+        coefficient = coefficient_b * (1. / eta) * coefficient_c
 
         logging.debug(
-            "mu:{0}, thickness:{1}, p:{2}, q:{3}, c_c:{4}".format(
-                mu, thickness, p, q, coefficient_c
+            "eta:{0}, thickness:{1}, p:{2}, q:{3}, c_c:{4}".format(
+                eta, thickness, p, q, coefficient_c
             )
         )
         return coefficient
@@ -208,25 +219,25 @@ class TwoDScan(XrdScan):
         index = np.asarray(np.where(local_max))
         ft_index_list = [
             [i, j] for (i, j) in zip(index[0, :], index[1, :])
-            ]
+        ]
 
         chi_threshold = 40
         ft_index_list = [
             i for i in ft_index_list if i[0] < chi_threshold
-            ]
+        ]
 
         in_sq_instance_list = [
             Square.Square(
                 i, [10, 10], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
             ) for i in ft_index_list
-            ]
+        ]
         ot_sq_instance_list = [
             Square.Square(
                 i, [20, 20], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
             ) for i in ft_index_list
-            ]
+        ]
         int_list = [i - k for (i, k)
                     in zip(in_sq_instance_list, ot_sq_instance_list)]
         ft_index_list = [x for (y, x) in sorted(
@@ -333,21 +344,21 @@ class TwoDScan(XrdScan):
                 i, size_list, int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max]))
             for i in index_list
-            ]
+        ]
         ot_sq_instance_list = [
             Square.Square(
                 i, [i + 4 for i in size_list], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max]))
             for i in index_list
-            ]
+        ]
         square_instances = in_sq_instance_list + ot_sq_instance_list
         [i.draw() for i in square_instances if is_plot]
 
         peak_net_intensity_matrix = np.asarray([
-                                                   i - k for (i, k) in
-                                                   zip(in_sq_instance_list,
-                                                       ot_sq_instance_list)
-                                                   ])
+            i - k for (i, k) in
+            zip(in_sq_instance_list,
+                ot_sq_instance_list)
+        ])
 
         fig_name = self.dp_sv_con_fig('Measurement', is_show, is_save, **param)
 
@@ -390,7 +401,6 @@ class TwoDScan(XrdScan):
         )
 
         logging.debug("Sample thickness is {0}\n".format(thickness))
-        logging.debug("Eta is {0}\n".format(eta))
         logging.debug("Peak intensity is {0}".format(volume_fraction_matrix))
 
         return volume_fraction_matrix
@@ -415,7 +425,7 @@ class TwoDScan(XrdScan):
         )
         import csv
         with open(mt_table_file, 'w') as tableTeX:
-            spam_writer = csv.writer(tableTeX, dialect='excel')
+            spam_writer = csv.writer(tableTeX, dialect='excel', delimiter=";")
             spam_writer.writerow(['MT', 'MT-A', 'MT-D', 'MT-C', 'MT-B'])
             for i in data_dict.keys():
                 spam_writer.writerow([i] + data_dict[i].tolist())
@@ -704,16 +714,6 @@ class RawFile(XrdFile):
         return scan_type
 
     @staticmethod
-    def save_config(scan_dict):
-        config = configparser.ConfigParser()
-        config.add_section('db')
-        [config.set('db', key, scan_dict[key]) for key in scan_dict.keys()]
-        path = 'config.ini'
-        with open(path, 'w') as configfile:
-            config.write(configfile)
-        del config
-
-    @staticmethod
     def __str_data(raw_file):
         with open(raw_file, 'rb') as fp:
             ds = DatasetDiffractPlusV3(fp)
@@ -808,8 +808,6 @@ class RawFile(XrdFile):
         scan_instance.stack_raw_data(data_list)
         scan_instance.scan_dict = instance_dict
 
-        self.save_config(instance_dict)
-
         logging.debug("Scan dict: {0}".format(instance_dict))
 
         return scan_instance
@@ -819,16 +817,93 @@ class H5File(XrdFile):
     def __init__(self, h5_file):
         if isinstance(h5_file, str):
             h5_file = [h5_file, '']
-            logging.warning("Sub file name is required by access_file")
+            logging.warning("Sub file name is required by get_file_handle")
 
         if not h5_file[0].endswith('.h5'):
             raise TypeError("Illegal h5 file name.")
 
         super(H5File, self).__init__(h5_file)
 
-        self.file_handle, self.h5_file_handle = self.access_file()
+        self.file_handle, self.h5_file_handle = self.get_file_handle()
+        self.__recipe = None
 
-    def access_file(self, **param):
+    def get_recipe(self):
+        """
+        Get the recipe
+        :return: recipe matrix
+        """
+        if 'recipe' in self.file_handle:
+            self.__recipe = self.file_handle['recipe']
+            mat_dict = {0: Si(),
+                        1: GaP(),
+                        2: AlGaP(),
+                        3: GaPN()}
+            mtd_dict = {0: '',
+                        1: 'MEE',
+                        2: 'MBE'}
+
+            recipe = [[mat_dict[i[0]].form_name, mtd_dict[i[1]],
+                       i[2], i[3]]
+                      for i in self.__recipe]
+            return recipe
+        else:
+            raise KeyError('Lack recipe.')
+
+    def get_recipe_plot(self):
+        """
+        Plot recipe in current axis.
+        :return: None
+        """
+        from matplotlib.patches import Rectangle
+
+        self.get_recipe()
+        mat_dict = {0: Si(),
+                    1: GaP(),
+                    2: AlGaP(),
+                    3: GaPN()}
+
+        ax = plt.gca()
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+
+        ax.tick_params(
+            axis="both", which="both", bottom="off", top="off",
+            labelbottom="off",
+            left="off", right="off", labelleft="off")
+
+        ax.set_aspect('auto')
+
+        tk = 0
+        for i in self.__recipe:
+            if 1 < i[3] < 100:
+                height = i[3] / 10
+            elif 100 < i[3] < 1000:
+                height = i[3] / 40
+            elif i[3] > 1000:
+                height = i[3] / 100
+            elif i[3] == 0:
+                height = 10
+            else:
+                height = i[3]
+            ax.add_patch(
+                Rectangle((0.2, tk), width=2, height=height,
+                          color=mat_dict[i[0]].color,
+                          label=mat_dict[i[0]].form_name)
+            )
+            tk += height
+
+        ax.set_xlim(0, 2.5)
+        ax.set_ylim(0, tk * 1.05)
+
+        from collections import OrderedDict
+        handles, labels = plt.gca().get_legend_handles_labels()
+        by_label = OrderedDict(zip(labels, handles))
+        plt.legend(by_label.values(), by_label.keys(), loc='best')
+
+    def get_file_handle(self, **param):
         h5_file_name = self.file[0]
         if 'sub_file_name' not in param:
             sub_file_name = self.file[1]
@@ -882,8 +957,6 @@ class H5File(XrdFile):
             except TypeError:
                 pass
 
-                # Close data set.
-
     def read_data(self):
         scan_instance = self.create_scan_instance()
         data_set = self.file_handle.items()
@@ -895,12 +968,24 @@ class H5File(XrdFile):
 
         return scan_instance
 
+    def set_recipe(self, recipe_matrix):
+        self.__recipe = recipe_matrix
+        try:
+            del self.file_handle['recipe']
+        except (TypeError, KeyError):
+            pass
+        self.file_handle.create_dataset(
+            'recipe',
+            data=recipe_matrix
+        )
+
+    recipe = property(get_recipe, set_recipe)
+
     def __del__(self):
         self.h5_file_handle.close()
 
 
 def reader(file):
-    # Factory function to process different file.
     if isinstance(file, str) and file.endswith('.raw'):
         return RawFile(file)
     else:
