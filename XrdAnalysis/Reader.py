@@ -222,30 +222,34 @@ class TwoDScan(XrdScan):
         ]
 
         chi_threshold = 40
-        ft_index_list = [
+        sorted_1st_index_list = [
             i for i in ft_index_list if i[0] < chi_threshold
         ]
+        po_constant = 0
+        while len(sorted_1st_index_list) < 4:
+            sorted_1st_index_list.append([po_constant, po_constant])
+            po_constant += 1
 
         in_sq_instance_list = [
             Square.Square(
                 i, [10, 10], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
-            ) for i in ft_index_list
+            ) for i in sorted_1st_index_list
         ]
         ot_sq_instance_list = [
             Square.Square(
                 i, [20, 20], int_data_matrix,
                 limitation=([hor_min, hor_max], [ver_min, ver_max])
-            ) for i in ft_index_list
+            ) for i in sorted_1st_index_list
         ]
         int_list = [i - k for (i, k)
                     in zip(in_sq_instance_list, ot_sq_instance_list)]
-        ft_index_list = [x for (y, x) in sorted(
-            zip(int_list, ft_index_list),
+        sorted_2nd_index_list = [x for (y, x) in sorted(
+            zip(int_list, sorted_1st_index_list),
             key=lambda pair: pair[0])][-4:]
-        ft_index_list = sort_index_list(ft_index_list)
+        sorted_3rd_index_list = sort_index_list(sorted_2nd_index_list)
 
-        return ft_index_list
+        return sorted_3rd_index_list
 
     def stack_raw_data(self, data_list):
         phi_data_matrix = self.two_d_data(data_list, 0)
